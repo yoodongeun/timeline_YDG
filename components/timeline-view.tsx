@@ -310,12 +310,19 @@ export function TimelineView() {
 
 const handleEditToggle = async () => {
     if (isEditing) {
-      // 수정 완료를 누르는 순간 Supabase에 저장합니다.
+      // 1. [수정 완료] 버튼을 누르면 저장을 시작합니다.
       setSaveStatus('saving')
+      
+      // 2. ★ 핵심: 저장할 데이터를 여기서 정의해줘야 합니다!
+      const saveData = { 
+        sheets: serializeSheets(sheets), 
+        currentId: currentSheetId 
+      };
+
       const { error } = await supabase
         .from('timeline_sheets')
         .upsert({
-          name: 'Sheet 1', // ★ Main Timeline에서 Sheet 1으로 변경
+          name: 'Sheet 1', // 불러오기 이름과 통일
           data: saveData, 
           updated_at: new Date().toISOString()
         }, { onConflict: 'name' })
@@ -324,11 +331,13 @@ const handleEditToggle = async () => {
         alert("저장 실패: " + error.message)
         setSaveStatus('idle')
       } else {
+        // 3. 저장이 성공하면 모니터링 모드로 바꿉니다.
         setSaveStatus('saved')
         setTimeout(() => setSaveStatus('idle'), 2000)
-        setIsEditing(false)
+        setIsEditing(false) // 버튼이 다시 '수정'으로 돌아가게 함
       }
     } else {
+      // 4. [수정] 버튼을 누르면 비밀번호 확인
       const input = prompt("비밀번호 4자리를 입력하세요:")
       if (input === appPassword) {
         setIsEditing(true)
@@ -337,7 +346,6 @@ const handleEditToggle = async () => {
       }
     }
   }
-
   const handleChangePassword = () => {
     const newPassword = prompt("새 비밀번호를 입력하세요:")
     if (newPassword !== null) {
