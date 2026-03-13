@@ -860,7 +860,7 @@ export function TimelineView() {
       <div className="flex items-center justify-between border-b border-border px-6 py-1.5">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-foreground" />
-          <h1 className="text-lg font-semibold text-foreground">Timeline View (Ver 5.5)</h1>
+          <h1 className="text-lg font-semibold text-foreground">Timeline View (Ver 5.6)</h1>
           <div className="flex items-center gap-1.5 ml-2">
             {saveStatus === 'saving' && (
               <span className="flex items-center gap-1 text-xs text-amber-500 animate-pulse">
