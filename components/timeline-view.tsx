@@ -233,7 +233,7 @@ export function TimelineView() {
     async function loadData() {
       setIsLoading(true)
       const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Sheet 1').single()
-      
+
       if (data && data.data) {
         setSheets(deserializeSheets(data.data.sheets))
         setCurrentSheetId(data.data.currentId || "default")
@@ -299,7 +299,7 @@ export function TimelineView() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
-  
+
   const [isEditing, setIsEditing] = useState(false)
   const [appPassword, setAppPassword] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -308,21 +308,21 @@ export function TimelineView() {
     return "1"
   })
 
-const handleEditToggle = async () => {
+  const handleEditToggle = async () => {
     if (isEditing) {
       setSaveStatus('saving')
-      
+
       // ★ 이 부분이 빠져있어서 에러가 났던 겁니다! 저장할 데이터를 준비합니다.
-      const saveData = { 
-        sheets: serializeSheets(sheets), 
-        currentId: currentSheetId 
+      const saveData = {
+        sheets: serializeSheets(sheets),
+        currentId: currentSheetId
       };
 
       const { error } = await supabase
         .from('timeline_sheets')
         .upsert({
-          name: 'Sheet 1', 
-          data: saveData, // 이제 saveData가 뭔지 알기 때문에 정상 작동합니다.
+          name: 'Sheet 1',
+          data: saveData,
           updated_at: new Date().toISOString()
         }, { onConflict: 'name' })
 
