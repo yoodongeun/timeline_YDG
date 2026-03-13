@@ -315,44 +315,46 @@ export function TimelineView() {
   })
 
   const handleEditToggle = async () => {
+    console.log("🚀 [DEBUG] handleEditToggle called. isEditing:", isEditing)
     if (isEditing) {
       setSaveStatus('saving')
-      console.log("저장 프로세스 시작...")
+      console.log("🚀 [DEBUG] Starting save process...")
 
       try {
-        console.log("데이터 직렬화 시작...")
-        const saveData = {
+        console.log("🚀 [DEBUG] Starting serialization...")
+        const saveDataToUpsert = { // Variable name changed to ensure no collision or old reference
           sheets: serializeSheets(sheets),
           currentId: currentSheetId
         };
-        console.log("직렬화 완료:", saveData)
+        console.log("🚀 [DEBUG] Serialization complete. Data:", saveDataToUpsert)
 
-        console.log("Supabase upsert 시작...")
+        console.log("🚀 [DEBUG] Calling Supabase upsert...")
         const { error } = await supabase
           .from('timeline_sheets')
           .upsert({
             name: 'Sheet 1',
-            data: saveData,
+            data: saveDataToUpsert,
             updated_at: new Date().toISOString()
           }, { onConflict: 'name' })
 
         if (error) {
-          console.error("Supabase upsert 오류:", error.message)
-          alert("저장 실패: " + error.message)
+          console.error("🚀 [DEBUG] Supabase Error:", error.message)
+          alert("❌ 저장 실패: " + error.message)
         } else {
-          console.log("저장 성공!")
+          console.log("🚀 [DEBUG] Save successful!")
           setSaveStatus('saved')
           setTimeout(() => setSaveStatus('idle'), 2000)
           setIsEditing(false)
-          alert("저장이 완료되었습니다.")
+          alert("✅ [Ver 3.0] 저장이 완료되었습니다!")
         }
       } catch (err) {
-        console.error("저장 중 예상치 못한 예외 발생:", err)
-        alert("저장 중 오류가 발생했습니다. 콘솔을 확인해주세요.")
+        console.error("🚀 [DEBUG] Unexpected exception during save:", err)
+        alert("🚨 저장 중 예상치 못한 오류 발생! 콘솔을 확인해주세요.")
       } finally {
         setSaveStatus('idle')
       }
     } else {
+      console.log("🚀 [DEBUG] Entering edit mode...")
       const input = prompt("비밀번호 4자리를 입력하세요:")
       if (input === appPassword) {
         setIsEditing(true)
