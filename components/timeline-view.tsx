@@ -237,14 +237,24 @@ export function TimelineView() {
 
         if (error) {
           console.error("데이터 불러오기 오류:", error.message)
-          // 에러가 있어도 기존에 sheets가 비어있을 때만 기본값 설정
-          setSheets(prev => prev.length > 0 ? prev : [{
+          setSheets([{
             id: "default",
             name: "Sheet 1",
             groups: [{ id: 'default-group', name: 'Tasks', tasks: [] }]
           }])
         } else if (data && data.data) {
-          setSheets(deserializeSheets(data.data.sheets))
+          // Supabase 스크린샷 기준으로 data.groups 또는 data.items가 있는지 확인
+          const rawData = data.data
+          if (rawData.groups || rawData.items) {
+            setSheets([{
+              id: "default",
+              name: "Sheet 1",
+              groups: deserializeGroups(rawData.groups || [])
+            }])
+          } else if (rawData.sheets) {
+            // 하위 호환성 (이전 버전 데이터가 있을 경우)
+            setSheets(deserializeSheets(rawData.sheets))
+          }
           setCurrentSheetId(data.data.currentId || "default")
         }
       } catch (err) {
@@ -322,8 +332,11 @@ export function TimelineView() {
 
       try {
         console.log("🚀 [DEBUG] Starting serialization...")
-        const saveDataToUpsert = { // Variable name changed to ensure no collision or old reference
-          sheets: serializeSheets(sheets),
+        // Supabase 스크린샷 구조 {"items": [], "groups": []} 에 맞춤
+        const saveDataToUpsert = {
+          items: [],
+          groups: serializeGroups(currentSheet.groups),
+          sheets: serializeSheets(sheets), // 하위 호환성용
           currentId: currentSheetId
         };
         console.log("🚀 [DEBUG] Serialization complete. Data:", saveDataToUpsert)
@@ -345,11 +358,11 @@ export function TimelineView() {
           setSaveStatus('saved')
           setTimeout(() => setSaveStatus('idle'), 2000)
           setIsEditing(false)
-          alert("✅ [Ver 3.0] 저장이 완료되었습니다!")
+          alert("✅ [Ver 4.0] 구조에 맞춰 저장이 완료되었습니다!")
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("🚀 [DEBUG] Unexpected exception during save:", err)
-        alert("🚨 저장 중 예상치 못한 오류 발생! 콘솔을 확인해주세요.")
+        alert("🚨 저장 중 오류 발생: " + (err.message || "알 수 없는 오류"))
       } finally {
         setSaveStatus('idle')
       }
