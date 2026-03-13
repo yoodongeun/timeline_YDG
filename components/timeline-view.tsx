@@ -232,7 +232,7 @@ export function TimelineView() {
   useEffect(() => {
     async function loadData() {
       setIsLoading(true)
-      const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Main Timeline').single()
+      const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Sheet 1').single()
       
       if (data && data.data) {
         setSheets(deserializeSheets(data.data.sheets))
@@ -315,8 +315,8 @@ const handleEditToggle = async () => {
       const { error } = await supabase
         .from('timeline_sheets')
         .upsert({
-          name: 'Main Timeline', // 불러오는 이름과 통일
-          data: { sheets: serializeSheets(sheets), currentId: currentSheetId },
+          name: 'Sheet 1', // ★ Main Timeline에서 Sheet 1으로 변경
+          data: saveData, 
           updated_at: new Date().toISOString()
         }, { onConflict: 'name' })
 
