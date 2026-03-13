@@ -8,6 +8,12 @@ import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Cal
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { createClient } from '@supabase/supabase-js'
+
+// --- Supabase 설정 (.env.local 연동) ---
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 function InlineDatePicker({
   date,
@@ -132,76 +138,6 @@ const SIDEBAR_WIDTH = 320 // px
 const SIDEBAR_COLLAPSED_WIDTH = 48 // px
 const ROW_HEIGHT = 60 // px
 
-// Sample data
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    name: "Q1 Product Strategy",
-    status: "Done",
-    schedules: [{ id: "s1", startDate: new Date("2025-01-01"), endDate: new Date("2025-02-15") }],
-    type: 'inspection',
-    isExpanded: true,
-    children: [
-      {
-        id: "1-1",
-        name: "Market Analysis",
-        status: "Done",
-        schedules: [{ id: "s2", startDate: new Date("2025-01-01"), endDate: new Date("2025-01-20") }],
-        type: 'inspection',
-      },
-      {
-        id: "1-2",
-        name: "Competitor Review",
-        status: "Done",
-        schedules: [{ id: "s3", startDate: new Date("2025-01-15"), endDate: new Date("2025-02-10") }],
-        type: 'inspection',
-      }
-    ]
-  },
-  {
-    id: "2",
-    name: "Design System Overhaul",
-    status: "In Progress",
-    schedules: [
-      { id: "s4", startDate: new Date("2025-02-01"), endDate: new Date("2025-03-15") },
-      { id: "s5", startDate: new Date("2025-04-01"), endDate: new Date("2025-04-30") },
-    ],
-    type: 'inspection',
-  },
-  {
-    id: "3",
-    name: "Backend API Maintenance",
-    status: "In Progress",
-    schedules: [
-      { id: "s6", startDate: new Date("2025-03-01"), endDate: new Date("2025-03-05") },
-      { id: "s7", startDate: new Date("2025-06-01"), endDate: new Date("2025-06-03") },
-    ],
-    type: 'maintenance',
-  },
-  {
-    id: "4",
-    name: "Mobile App Launch",
-    status: "To Do",
-    schedules: [{ id: "s8", startDate: new Date("2025-04-01"), endDate: new Date("2025-06-30") }],
-    type: 'inspection',
-  },
-  {
-    id: "5",
-    name: "Marketing Campaign",
-    status: "To Do",
-    schedules: [{ id: "s9", startDate: new Date("2025-05-15"), endDate: new Date("2025-07-31") }],
-    type: 'inspection',
-  },
-  {
-    id: "6",
-    name: "User Testing Phase",
-    status: "Done",
-    schedules: [{ id: "s10", startDate: new Date("2025-01-15"), endDate: new Date("2025-02-28") }],
-    type: 'inspection',
-  },
-]
-
-const STORAGE_KEY = "timeline-tasks-data"
 const PASSWORD_STORAGE_KEY = "timeline-password"
 
 // Serialize tasks to JSON-safe format (Date -> string)
@@ -257,7 +193,6 @@ const deserializeGroups = (data: any[]): TaskGroup[] => {
 // Deserialize sheets from JSON
 function deserializeSheets(data: any[]): Sheet[] {
   return data.map(s => {
-    // Migration: s.tasks -> s.groups
     if ((s as any).tasks && !s.groups) {
       return {
         id: s.id,
@@ -276,79 +211,11 @@ function deserializeSheets(data: any[]): Sheet[] {
   })
 }
 
-// Load sheets from localStorage
-function loadSheets(): { sheets: Sheet[], currentId: string } | null {
-  if (typeof window === "undefined") return null
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (!saved) return null
-  try {
-    const data = JSON.parse(saved)
-    // Backward compatibility for old single-task list format
-    if (Array.isArray(data)) {
-      const migratedSheet: Sheet = {
-        id: "default",
-        name: "Sheet 1",
-        groups: [{
-          id: 'default-group',
-          name: 'Tasks',
-          tasks: deserializeTasks(data)
-        }]
-      }
-      return { sheets: [migratedSheet], currentId: migratedSheet.id }
-    }
-    // New format: { sheets: Sheet[], currentId: string }
-    return {
-      sheets: deserializeSheets(data.sheets),
-      currentId: data.currentId
-    }
-  } catch (e) {
-    console.error("Failed to load tasks", e)
-    return null
-  }
-}
-
-// Save sheets to localStorage
-function saveSheets(sheets: Sheet[], currentId: string) {
-  if (typeof window === "undefined") return
-  const data = {
-    sheets: serializeSheets(sheets),
-    currentId
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
-
-const statusConfig: Record<Status, { bg: string; text: string; border: string }> = {
-  "To Do": {
-    bg: "bg-slate-200 dark:bg-slate-800",
-    text: "text-slate-700 dark:text-slate-300",
-    border: "border-slate-300 dark:border-slate-700",
-  },
-  "In Progress": {
-    bg: "bg-blue-200 dark:bg-blue-900/40",
-    text: "text-blue-700 dark:text-blue-300",
-    border: "border-blue-400 dark:border-blue-600",
-  },
-  Done: {
-    bg: "bg-emerald-200 dark:bg-emerald-900/40",
-    text: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-400 dark:border-emerald-600",
-  },
-}
-
 export function TimelineView() {
-  const [sheets, setSheets] = useState<Sheet[]>(() => {
-    const saved = loadSheets()
-    if (saved) return saved.sheets
-    return [{
-      id: "default",
-      name: "Sheet 1",
-      groups: [{ id: 'default-group', name: 'Tasks', tasks: initialTasks }]
-    }]
-  })
-  const [currentSheetId, setCurrentSheetId] = useState<string>(() => {
-    const saved = loadSheets()
-    return saved?.currentId ?? "default"
-  })
+  const [sheets, setSheets] = useState<Sheet[]>([])
+  const [currentSheetId, setCurrentSheetId] = useState<string>("default")
+  const [isLoading, setIsLoading] = useState(true)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   // Color palette for folder tabs
   const TAB_COLORS = [
@@ -362,6 +229,54 @@ export function TimelineView() {
 
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [collapsedSchedules, setCollapsedSchedules] = useState<Record<string, boolean>>({})
+
+  // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true)
+      const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Main Timeline').single()
+      
+      if (data && data.data) {
+        setSheets(deserializeSheets(data.data.sheets))
+        setCurrentSheetId(data.data.currentId || "default")
+      } else {
+        // 데이터가 아예 없을 경우 빈 시트 생성
+        setSheets([{
+          id: "default",
+          name: "Sheet 1",
+          groups: [{ id: 'default-group', name: 'Tasks', tasks: [] }]
+        }])
+      }
+      setIsLoading(false)
+    }
+    loadData()
+  }, [])
+
+  // 2. Supabase에 데이터 자동 저장 (데이터 변경 시 1초 딜레이 후 저장)
+  useEffect(() => {
+    if (isLoading || sheets.length === 0) return
+
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving')
+      const { error } = await supabase
+        .from('timeline_sheets')
+        .upsert({
+          name: 'Main Timeline',
+          data: { sheets: serializeSheets(sheets), currentId: currentSheetId },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'name' })
+
+      if (!error) {
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus('idle'), 2000)
+      } else {
+        console.error("Supabase 저장 에러:", error.message)
+        setSaveStatus('idle')
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [sheets, currentSheetId, isLoading])
 
   const toggleScheduleVisibility = (taskId: string) => {
     setCollapsedSchedules(prev => ({
@@ -410,7 +325,7 @@ export function TimelineView() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  
   const [isEditing, setIsEditing] = useState(false)
   const [appPassword, setAppPassword] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -452,18 +367,6 @@ export function TimelineView() {
 
   const [draggedScheduleId, setDraggedScheduleId] = useState<string | null>(null)
   const [dragOverScheduleId, setDragOverScheduleId] = useState<string | null>(null)
-
-  // Auto-save to localStorage whenever sheets or currentSheetId change
-  useEffect(() => {
-    setSaveStatus('saving')
-    const timeout = setTimeout(() => {
-      saveSheets(sheets, currentSheetId)
-      setSaveStatus('saved')
-      const resetTimeout = setTimeout(() => setSaveStatus('idle'), 2000)
-      return () => clearTimeout(resetTimeout)
-    }, 300) // debounce 300ms
-    return () => clearTimeout(timeout)
-  }, [sheets, currentSheetId])
 
   // Group management
   const addGroup = () => {
@@ -602,21 +505,6 @@ export function TimelineView() {
     updateTaskInGroup(groupId, taskId, (t) => ({ ...t, isExpanded: !t.isExpanded }))
   }
 
-  // Reset to initial data
-  const resetTasks = () => {
-    if (confirm("모든 변경사항을 초기화하시겠습니까?")) {
-      // This needs to be refactored to reset the current sheet's groups/tasks
-      localStorage.removeItem(STORAGE_KEY)
-      setSaveStatus('idle')
-      setSheets([{
-        id: "default",
-        name: "Sheet 1",
-        groups: [{ id: 'default-group', name: 'Tasks', tasks: initialTasks }]
-      }])
-      setCurrentSheetId("default")
-    }
-  }
-
   // Sheet management
   const addSheet = () => {
     const newSheet: Sheet = {
@@ -723,7 +611,6 @@ export function TimelineView() {
     })
   }
 
-
   const [scaleMonths, setScaleMonths] = useState<ScaleMonths>(12)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -823,11 +710,6 @@ export function TimelineView() {
       // 2. Generate Month Ticks
       for (let i = 0; i < totalMonths; i++) {
         const d = addMonths(startDate, i)
-        // Show simple number (01, 02...)
-        // In 3-Year view, month width is ~3.33%. Standard screen ~1200px -> ~40px per month. Should fit?
-        // Maybe force sparse if very squished? But 36 months in full view is tight. 
-        // Let's try showing all. If tight, user can reduce font or we can optimize later.
-
         periods.push({
           label: format(d, "MM"),
           date: d,
@@ -922,6 +804,8 @@ export function TimelineView() {
   }, [scaleMonths, scrollToToday])
 
   const sidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
+
+  if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-lg">데이터베이스와 동기화 중입니다...</div>
 
   return (
     <div className="flex h-screen flex-col bg-background">
