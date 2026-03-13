@@ -10,10 +10,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { createClient } from '@supabase/supabase-js'
 
-// --- Supabase 설정 (.env.local 연동) ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// 아까 만든 supabase.ts 파일을 불러옵니다.
+import { supabase } from "@/lib/supabase"
 
 function InlineDatePicker({
   date,
