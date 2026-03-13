@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 주소 끝에 / 가 절대 없어야 합니다.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yoodongeun.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloYmRjbGZneGZzcXl6Ym5wZXZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODIzNjk3NjAsImV4cCI6MjAwNzk0NTc2MH0.U8A-' // Placeholder, user will provide if needed or env will override
+const supabaseUrl = 'https://yhbdclfgfxsqyzbnpev.supabase.co' // 오타 방지를 위해 새로 복사
+const supabaseAnonKey = 'sb_publishable_W903JHm_dZ_KSjywaMgS0g_ASqEvq9C' // 키값도 다시 확인
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
