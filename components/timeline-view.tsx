@@ -232,20 +232,26 @@ export function TimelineView() {
   useEffect(() => {
     async function loadData() {
       setIsLoading(true)
-      const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Sheet 1').single()
+      try {
+        const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Sheet 1').single()
 
-      if (data && data.data) {
-        setSheets(deserializeSheets(data.data.sheets))
-        setCurrentSheetId(data.data.currentId || "default")
-      } else {
-        // 데이터가 아예 없을 경우 빈 시트 생성
-        setSheets([{
-          id: "default",
-          name: "Sheet 1",
-          groups: [{ id: 'default-group', name: 'Tasks', tasks: [] }]
-        }])
+        if (error) {
+          console.error("데이터 불러오기 오류:", error.message)
+          // 에러가 있어도 기존에 sheets가 비어있을 때만 기본값 설정
+          setSheets(prev => prev.length > 0 ? prev : [{
+            id: "default",
+            name: "Sheet 1",
+            groups: [{ id: 'default-group', name: 'Tasks', tasks: [] }]
+          }])
+        } else if (data && data.data) {
+          setSheets(deserializeSheets(data.data.sheets))
+          setCurrentSheetId(data.data.currentId || "default")
+        }
+      } catch (err) {
+        console.error("loadData 과정에서 예외 발생:", err)
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
     loadData()
   }, [])
@@ -311,28 +317,40 @@ export function TimelineView() {
   const handleEditToggle = async () => {
     if (isEditing) {
       setSaveStatus('saving')
+      console.log("저장 프로세스 시작...")
 
-      // ★ 이 부분이 빠져있어서 에러가 났던 겁니다! 저장할 데이터를 준비합니다.
-      const saveData = {
-        sheets: serializeSheets(sheets),
-        currentId: currentSheetId
-      };
+      try {
+        console.log("데이터 직렬화 시작...")
+        const saveData = {
+          sheets: serializeSheets(sheets),
+          currentId: currentSheetId
+        };
+        console.log("직렬화 완료:", saveData)
 
-      const { error } = await supabase
-        .from('timeline_sheets')
-        .upsert({
-          name: 'Sheet 1',
-          data: saveData,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'name' })
+        console.log("Supabase upsert 시작...")
+        const { error } = await supabase
+          .from('timeline_sheets')
+          .upsert({
+            name: 'Sheet 1',
+            data: saveData,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'name' })
 
-      if (error) {
-        alert("저장 실패: " + error.message)
+        if (error) {
+          console.error("Supabase upsert 오류:", error.message)
+          alert("저장 실패: " + error.message)
+        } else {
+          console.log("저장 성공!")
+          setSaveStatus('saved')
+          setTimeout(() => setSaveStatus('idle'), 2000)
+          setIsEditing(false)
+          alert("저장이 완료되었습니다.")
+        }
+      } catch (err) {
+        console.error("저장 중 예상치 못한 예외 발생:", err)
+        alert("저장 중 오류가 발생했습니다. 콘솔을 확인해주세요.")
+      } finally {
         setSaveStatus('idle')
-      } else {
-        setSaveStatus('saved')
-        setTimeout(() => setSaveStatus('idle'), 2000)
-        setIsEditing(false) // 저장이 성공하면 다시 모니터링 모드로 돌아갑니다.
       }
     } else {
       const input = prompt("비밀번호 4자리를 입력하세요:")
