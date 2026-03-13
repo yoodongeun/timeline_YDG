@@ -254,22 +254,31 @@ export function TimelineView() {
   useEffect(() => {
     if (isLoading || sheets.length === 0) return
 
-    const timer = setTimeout(async () => {
+const timer = setTimeout(async () => {
       setSaveStatus('saving')
+      
+      // 저장할 데이터를 준비합니다.
+      const saveData = { 
+        sheets: serializeSheets(sheets), 
+        currentId: currentSheetId 
+      };
+
       const { error } = await supabase
         .from('timeline_sheets')
         .upsert({
           name: 'Main Timeline',
-          data: { sheets: serializeSheets(sheets), currentId: currentSheetId },
+          data: saveData, // 이 부분이 중요합니다!
           updated_at: new Date().toISOString()
         }, { onConflict: 'name' })
 
-      if (!error) {
-        setSaveStatus('saved')
-        setTimeout(() => setSaveStatus('idle'), 2000)
+      if (error) {
+        console.error("저장 실패 상세 원인:", error);
+        // 스마트폰에서도 에러를 볼 수 있게 알림을 띄웁니다.
+        alert("저장 실패: " + error.message); 
+        setSaveStatus('idle');
       } else {
-        console.error("Supabase 저장 에러:", error.message)
-        setSaveStatus('idle')
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
       }
     }, 1000)
 
