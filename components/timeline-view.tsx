@@ -250,40 +250,7 @@ export function TimelineView() {
     loadData()
   }, [])
 
-  // 2. Supabase에 데이터 자동 저장 (데이터 변경 시 1초 딜레이 후 저장)
-  useEffect(() => {
-    if (isLoading || sheets.length === 0) return
 
-const timer = setTimeout(async () => {
-      setSaveStatus('saving')
-      
-      // 저장할 데이터를 준비합니다.
-      const saveData = { 
-        sheets: serializeSheets(sheets), 
-        currentId: currentSheetId 
-      };
-
-      const { error } = await supabase
-        .from('timeline_sheets')
-        .upsert({
-          name: 'Main Timeline',
-          data: saveData, // 이 부분이 중요합니다!
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'name' })
-
-      if (error) {
-        console.error("저장 실패 상세 원인:", error);
-        // 스마트폰에서도 에러를 볼 수 있게 알림을 띄웁니다.
-        alert("저장 실패: " + error.message); 
-        setSaveStatus('idle');
-      } else {
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      }
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [sheets, currentSheetId, isLoading])
 
   const toggleScheduleVisibility = (taskId: string) => {
     setCollapsedSchedules(prev => ({
@@ -341,9 +308,26 @@ const timer = setTimeout(async () => {
     return "1"
   })
 
-  const handleEditToggle = () => {
+const handleEditToggle = async () => {
     if (isEditing) {
-      setIsEditing(false)
+      // 수정 완료를 누르는 순간 Supabase에 저장합니다.
+      setSaveStatus('saving')
+      const { error } = await supabase
+        .from('timeline_sheets')
+        .upsert({
+          name: 'Main Timeline', // 불러오는 이름과 통일
+          data: { sheets: serializeSheets(sheets), currentId: currentSheetId },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'name' })
+
+      if (error) {
+        alert("저장 실패: " + error.message)
+        setSaveStatus('idle')
+      } else {
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus('idle'), 2000)
+        setIsEditing(false)
+      }
     } else {
       const input = prompt("비밀번호 4자리를 입력하세요:")
       if (input === appPassword) {
