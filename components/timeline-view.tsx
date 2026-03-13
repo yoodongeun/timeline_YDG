@@ -246,14 +246,16 @@ export function TimelineView() {
           const rawData = data.data
           console.log("🚀 [DEBUG] Received rawData:", rawData)
 
-          if (rawData.groups || rawData.items) {
+          if (rawData.sheets && Array.isArray(rawData.sheets) && rawData.sheets.length > 0) {
+            console.log("🚀 [DEBUG] Loading multiple sheets")
+            setSheets(deserializeSheets(rawData.sheets))
+          } else if (rawData.groups || rawData.items) {
+            console.log("🚀 [DEBUG] Loading single sheet from groups/items")
             setSheets([{
               id: "default",
               name: "Sheet 1",
               groups: deserializeGroups(rawData.groups || [])
             }])
-          } else if (rawData.sheets) {
-            setSheets(deserializeSheets(rawData.sheets))
           }
 
           setCurrentSheetId(rawData.currentId || "default")
@@ -860,7 +862,7 @@ export function TimelineView() {
       <div className="flex items-center justify-between border-b border-border px-6 py-1.5">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-foreground" />
-          <h1 className="text-lg font-semibold text-foreground">Timeline View (Ver 5.6)</h1>
+          <h1 className="text-lg font-semibold text-foreground">Timeline View (Ver 5.7)</h1>
           <div className="flex items-center gap-1.5 ml-2">
             {saveStatus === 'saving' && (
               <span className="flex items-center gap-1 text-xs text-amber-500 animate-pulse">
