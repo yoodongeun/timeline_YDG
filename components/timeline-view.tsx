@@ -243,8 +243,9 @@ export function TimelineView() {
             groups: [{ id: 'default-group', name: 'Tasks', tasks: [] }]
           }])
         } else if (data && data.data) {
-          // Supabase 스크린샷 기준으로 data.groups 또는 data.items가 있는지 확인
           const rawData = data.data
+          console.log("🚀 [DEBUG] Received rawData:", rawData)
+
           if (rawData.groups || rawData.items) {
             setSheets([{
               id: "default",
@@ -252,10 +253,17 @@ export function TimelineView() {
               groups: deserializeGroups(rawData.groups || [])
             }])
           } else if (rawData.sheets) {
-            // 하위 호환성 (이전 버전 데이터가 있을 경우)
             setSheets(deserializeSheets(rawData.sheets))
           }
-          setCurrentSheetId(data.data.currentId || "default")
+
+          setCurrentSheetId(rawData.currentId || "default")
+
+          // 데이터베이스에 저장된 비밀번호가 있으면 불러옴
+          if (rawData.appPassword) {
+            console.log("🚀 [DEBUG] Loading password from DB")
+            setAppPassword(rawData.appPassword)
+            localStorage.setItem(PASSWORD_STORAGE_KEY, rawData.appPassword)
+          }
         }
       } catch (err) {
         console.error("loadData 과정에서 예외 발생:", err)
@@ -325,54 +333,63 @@ export function TimelineView() {
   })
 
   const handleEditToggle = async () => {
-    console.log("🚀 [DEBUG] handleEditToggle called. isEditing:", isEditing)
+    console.log("🚀 [DEBUG] 1. handleEditToggle 진입. isEditing:", isEditing)
+
     if (isEditing) {
       setSaveStatus('saving')
-      console.log("🚀 [DEBUG] Starting save process...")
+      console.log("🚀 [DEBUG] 2. 저장 프로세스 시작 (isEditing=true)")
 
       try {
-        console.log("🚀 [DEBUG] Starting serialization...")
-        // Supabase 스크린샷 구조 {"items": [], "groups": []} 에 맞춤
+        console.log("🚀 [DEBUG] 3. 데이터 직렬화 시도 중...")
+        const currentGroups = currentSheet?.groups || []
+
         const saveDataToUpsert = {
           items: [],
-          groups: serializeGroups(currentSheet.groups),
-          sheets: serializeSheets(sheets), // 하위 호환성용
-          currentId: currentSheetId
+          groups: serializeGroups(currentGroups),
+          sheets: serializeSheets(sheets),
+          currentId: currentSheetId,
+          appPassword: appPassword // 비밀번호도 데이터베이스에 함께 저장
         };
-        console.log("🚀 [DEBUG] Serialization complete. Data:", saveDataToUpsert)
+        console.log("🚀 [DEBUG] 4. 직렬화 완료. 데이터 크기(groups):", saveDataToUpsert.groups.length)
 
-        console.log("🚀 [DEBUG] Calling Supabase upsert...")
-        const { error } = await supabase
+        console.log("🚀 [DEBUG] 5. Supabase 'timeline_sheets' upsert 요청 중...")
+        const { data: upsertData, error } = await supabase
           .from('timeline_sheets')
           .upsert({
             name: 'Sheet 1',
             data: saveDataToUpsert,
             updated_at: new Date().toISOString()
           }, { onConflict: 'name' })
+          .select()
 
         if (error) {
-          console.error("🚀 [DEBUG] Supabase Error:", error.message)
-          alert("❌ 저장 실패: " + error.message)
+          console.error("🚀 [DEBUG] 6-Err. Supabase 오류 발생:", error)
+          alert("❌ 저장 실패 (Supabase): " + error.message)
         } else {
-          console.log("🚀 [DEBUG] Save successful!")
+          console.log("🚀 [DEBUG] 6-Success. 저장 완료!", upsertData)
           setSaveStatus('saved')
           setTimeout(() => setSaveStatus('idle'), 2000)
           setIsEditing(false)
-          alert("✅ [Ver 4.0] 구조에 맞춰 저장이 완료되었습니다!")
+          alert("✅ [Ver 5.0] 비밀번호 포함 모든 데이터가 동기화되었습니다!")
         }
       } catch (err: any) {
-        console.error("🚀 [DEBUG] Unexpected exception during save:", err)
-        alert("🚨 저장 중 오류 발생: " + (err.message || "알 수 없는 오류"))
+        console.error("🚀 [DEBUG] 6-Crit. 예상치 못한 예외 발생:", err)
+        alert("🚨 저장 중 치명적 오류 발생: " + (err.message || "알 수 없는 오류"))
       } finally {
         setSaveStatus('idle')
+        console.log("🚀 [DEBUG] 7. handleEditToggle 완료 (finally)")
       }
     } else {
-      console.log("🚀 [DEBUG] Entering edit mode...")
-      const input = prompt("비밀번호 4자리를 입력하세요:")
+      console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입")
+      const input = prompt("비밀번호 4자리를 입력하세요 (기본값: 1):")
       if (input === appPassword) {
+        console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
         setIsEditing(true)
       } else if (input !== null) {
+        console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
         alert("비밀번호가 틀렸습니다.")
+      } else {
+        console.log("🚀 [DEBUG] 3. 비밀번호 입력 취소")
       }
     }
   }
