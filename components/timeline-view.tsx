@@ -833,10 +833,10 @@ export function TimelineView() {
     const maxScroll = el.scrollWidth - el.clientWidth
     if (maxScroll <= 0) return
 
-    // Center today in the viewport
+    // Center today at 30% of the viewport width from the left
     const contentWidth = el.scrollWidth
     const viewportWidth = el.clientWidth
-    const targetScroll = (todayPositionPercent / 100) * contentWidth - viewportWidth / 2
+    const targetScroll = (todayPositionPercent / 100) * contentWidth - viewportWidth * 0.3
 
     el.scrollTo({ left: Math.max(0, Math.min(targetScroll, maxScroll)), behavior: "smooth" })
   }, [todayPositionPercent])
