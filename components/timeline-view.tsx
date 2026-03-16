@@ -1075,11 +1075,6 @@ export function TimelineView() {
                     <CalendarIcon className="h-3 w-3" />
                     {flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks)).some(ft => !collapsedSchedules[ft.task.id]) ? "전체 날짜 접기" : "전체 날짜 펼치기"}
                   </Button>
-                  {isEditing && (
-                    <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => addTask(currentSheet.groups[0].id)}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  )}
                 </div>
               )}
               <Button variant="ghost" size="sm" onClick={() => setIsCollapsed(!isCollapsed)} className={cn("h-8 w-8 p-0", !isCollapsed && "ml-auto")}>
