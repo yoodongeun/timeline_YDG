@@ -383,7 +383,7 @@ export function TimelineView() {
       }
     } else {
       console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입")
-      const input = prompt("비밀번호 4자리를 입력하세요 (기본값: 1):")
+      const input = prompt("비밀번호 4자리를 입력하세요:")
       if (input === appPassword) {
         console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
         setIsEditing(true)
@@ -841,14 +841,17 @@ export function TimelineView() {
     el.scrollTo({ left: Math.max(0, Math.min(targetScroll, maxScroll)), behavior: "smooth" })
   }, [todayPositionPercent])
 
-  // Initialize scroll to today on mount
-  useState(() => {
-    setTimeout(scrollToToday, 100)
-  })
+  // Attempt to scroll today into view after data loading is complete
+  useEffect(() => {
+    if (!isLoading) {
+      const t = setTimeout(scrollToToday, 500) // Give UI time to render after loading
+      return () => clearTimeout(t)
+    }
+  }, [isLoading, scrollToToday])
 
   // Whenever time scale changes, attempt to smoothly scroll today into view again
   useEffect(() => {
-    const t = setTimeout(scrollToToday, 50)
+    const t = setTimeout(scrollToToday, 100)
     return () => clearTimeout(t)
   }, [scaleMonths, scrollToToday])
 
