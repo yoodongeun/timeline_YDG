@@ -56,6 +56,7 @@ const SCALE_OPTIONS = [
   { value: 9, label: "9개월" },
   { value: 12, label: "1년" },
   { value: 15.6, label: "1.3년" },
+  { value: 96, label: "8년" },
 ] as const
 type ScaleMonths = (typeof SCALE_OPTIONS)[number]["value"]
 
