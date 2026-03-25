@@ -1335,53 +1335,55 @@ export function TimelineView() {
                     <div className="absolute inset-0 pointer-events-none z-10">
                       {group.tasks.map((task) => {
                         if (task.type !== 'maintenance') return null
-                        return task.schedules.map((schedule) => {
-                          const pos = calculateSchedulePosition(schedule)
-                          const isNarrow = (pos.endPercent - pos.leftPercent) < 4
-                          const scheduleColor = schedule.color || '#3b82f6'
-                          const bgColor = scheduleColor + '1A'
-                          const borderColor = scheduleColor + 'B3'
+                        return (task.schedules.length > 1 && !expandedSchedules[task.id]
+                          ? [task.schedules[0]]
+                          : task.schedules).map((schedule) => {
+                            const pos = calculateSchedulePosition(schedule)
+                            const isNarrow = (pos.endPercent - pos.leftPercent) < 4
+                            const scheduleColor = schedule.color || '#3b82f6'
+                            const bgColor = scheduleColor + '1A'
+                            const borderColor = scheduleColor + 'B3'
 
-                          return (
-                            <div key={`maint-line-${schedule.id}`} className="absolute inset-y-0 w-full h-full">
-                              <div
-                                className="absolute bottom-0 pointer-events-none"
-                                style={{ left: `${pos.leftPercent}%`, width: `${pos.endPercent - pos.leftPercent}%`, top: '0px', backgroundColor: bgColor }}
-                              />
-                              <div
-                                className="absolute bottom-0 w-px border-l border-dashed"
-                                style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
-                              >
+                            return (
+                              <div key={`maint-line-${schedule.id}`} className="absolute inset-y-0 w-full h-full">
                                 <div
-                                  className="absolute top-0 -translate-x-full text-white text-[10px] px-1 py-0.5 whitespace-nowrap font-medium z-20 rounded-t-sm"
-                                  style={{ backgroundColor: scheduleColor }}
+                                  className="absolute bottom-0 pointer-events-none"
+                                  style={{ left: `${pos.leftPercent}%`, width: `${pos.endPercent - pos.leftPercent}%`, top: '0px', backgroundColor: bgColor }}
+                                />
+                                <div
+                                  className="absolute bottom-0 w-px border-l border-dashed"
+                                  style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                                 >
-                                  {format(schedule.startDate, "M/d (eee)", { locale: ko })}
+                                  <div
+                                    className="absolute top-0 -translate-x-full text-white text-[10px] px-1 py-0.5 whitespace-nowrap font-medium z-20 rounded-t-sm"
+                                    style={{ backgroundColor: scheduleColor }}
+                                  >
+                                    {format(schedule.startDate, "M/d (eee)", { locale: ko })}
+                                  </div>
+                                </div>
+                                {schedule.memo && (
+                                  <div
+                                    className="absolute text-[11px] font-semibold whitespace-nowrap text-center -translate-x-1/2 z-20"
+                                    style={{ left: `${pos.leftPercent + (pos.endPercent - pos.leftPercent) / 2}%`, top: '-55px', color: scheduleColor }}
+                                  >
+                                    {/* Memo display adjusted for group visibility */}
+                                    <span className="bg-background/80 px-1 rounded shadow-sm">{schedule.memo}</span>
+                                  </div>
+                                )}
+                                <div
+                                  className="absolute bottom-0 w-px border-l border-dashed"
+                                  style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
+                                >
+                                  <div
+                                    className="absolute top-0 -translate-x-[2px] text-white text-[10px] px-1 py-0.5 whitespace-nowrap font-medium z-20 rounded-t-sm"
+                                    style={{ backgroundColor: scheduleColor }}
+                                  >
+                                    {format(schedule.endDate, "M/d (eee)", { locale: ko })}
+                                  </div>
                                 </div>
                               </div>
-                              {schedule.memo && (
-                                <div
-                                  className="absolute text-[11px] font-semibold whitespace-nowrap text-center -translate-x-1/2 z-20"
-                                  style={{ left: `${pos.leftPercent + (pos.endPercent - pos.leftPercent) / 2}%`, top: '-55px', color: scheduleColor }}
-                                >
-                                  {/* Memo display adjusted for group visibility */}
-                                  <span className="bg-background/80 px-1 rounded shadow-sm">{schedule.memo}</span>
-                                </div>
-                              )}
-                              <div
-                                className="absolute bottom-0 w-px border-l border-dashed"
-                                style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
-                              >
-                                <div
-                                  className="absolute top-0 -translate-x-[2px] text-white text-[10px] px-1 py-0.5 whitespace-nowrap font-medium z-20 rounded-t-sm"
-                                  style={{ backgroundColor: scheduleColor }}
-                                >
-                                  {format(schedule.endDate, "M/d (eee)", { locale: ko })}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })
+                            )
+                          })
                       })}
                     </div>
 
@@ -1685,26 +1687,28 @@ export function TimelineView() {
                         </div>
 
                         {/* Right: Timeline Bars/Lines (multiple) */}
-                        {task.type === 'inspection' && task.schedules.map((schedule) => {
-                          const pos = calculateSchedulePosition(schedule)
-                          const barColor = task.color || DEFAULT_BAR_COLOR
-                          return (
-                            <div key={`bar-${schedule.id}`} className="contents">
-                              <div
-                                className="absolute text-[10px] font-bold text-foreground/80 bg-background/40 px-1 rounded-sm whitespace-nowrap z-5"
-                                style={{ left: pos.left, bottom: '24px' }}
-                              >
-                                {format(schedule.startDate, "yyyy-MM-dd") === format(schedule.endDate, "yyyy-MM-dd")
-                                  ? format(schedule.startDate, "M/d (eee)", { locale: ko })
-                                  : `${format(schedule.startDate, "M/d (eee)", { locale: ko })} ~ ${format(schedule.endDate, "M/d (eee)", { locale: ko })}`}
+                        {task.type === 'inspection' && (task.schedules.length > 1 && !expandedSchedules[task.id]
+                          ? [task.schedules[0]]
+                          : task.schedules).map((schedule) => {
+                            const pos = calculateSchedulePosition(schedule)
+                            const barColor = task.color || DEFAULT_BAR_COLOR
+                            return (
+                              <div key={`bar-${schedule.id}`} className="contents">
+                                <div
+                                  className="absolute text-[10px] font-bold text-foreground/80 bg-background/40 px-1 rounded-sm whitespace-nowrap z-5"
+                                  style={{ left: pos.left, bottom: '24px' }}
+                                >
+                                  {format(schedule.startDate, "yyyy-MM-dd") === format(schedule.endDate, "yyyy-MM-dd")
+                                    ? format(schedule.startDate, "M/d (eee)", { locale: ko })
+                                    : `${format(schedule.startDate, "M/d (eee)", { locale: ko })} ~ ${format(schedule.endDate, "M/d (eee)", { locale: ko })}`}
+                                </div>
+                                <div
+                                  className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10"
+                                  style={{ left: pos.left, width: pos.width, bottom: '0px', backgroundColor: barColor }}
+                                />
                               </div>
-                              <div
-                                className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10"
-                                style={{ left: pos.left, width: pos.width, bottom: '0px', backgroundColor: barColor }}
-                              />
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
                       </div>
                     ))}
                   </div>
