@@ -215,6 +215,40 @@ export function TimelineView() {
   const [isLoading, setIsLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
 
+  // Auto-save whenever sheets or currentSheetId changes
+  useEffect(() => {
+    if (isLoading || sheets.length === 0) return
+
+    const saveData = async () => {
+      setSaveStatus('saving')
+      try {
+        const { error } = await supabase
+          .from('timeline_sheets')
+          .update({
+            data: {
+              sheets: serializeSheets(sheets),
+              currentId: currentSheetId,
+              appPassword: appPassword
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('name', 'Sheet 1')
+
+        if (error) {
+          console.error("Auto-save error:", error)
+        } else {
+          setSaveStatus('saved')
+          setTimeout(() => setSaveStatus('idle'), 2000)
+        }
+      } catch (err) {
+        console.error("Auto-save exception:", err)
+      }
+    }
+
+    const timeoutId = setTimeout(saveData, 2000) // 2 second debounce
+    return () => clearTimeout(timeoutId)
+  }, [sheets, currentSheetId, appPassword, isLoading])
+
   // Color palette for folder tabs
   const TAB_COLORS = [
     { bg: "bg-amber-100", border: "border-amber-200", active: "bg-amber-50" },
