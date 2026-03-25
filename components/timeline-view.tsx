@@ -214,6 +214,12 @@ export function TimelineView() {
   const [currentSheetId, setCurrentSheetId] = useState<string>("default")
   const [isLoading, setIsLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [appPassword, setAppPassword] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(PASSWORD_STORAGE_KEY) || "1"
+    }
+    return "1"
+  })
 
   // Auto-save whenever sheets or currentSheetId changes
   useEffect(() => {
@@ -427,12 +433,6 @@ export function TimelineView() {
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
 
   const [isEditing, setIsEditing] = useState(false)
-  const [appPassword, setAppPassword] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(PASSWORD_STORAGE_KEY) || "1"
-    }
-    return "1"
-  })
 
   const handleEditToggle = async () => {
     console.log("🚀 [DEBUG] 1. handleEditToggle 진입. isEditing:", isEditing)
@@ -784,14 +784,12 @@ export function TimelineView() {
   // Configuration for the full scrollable range
   const timelineConfig = useMemo(() => {
     const today = new Date()
-    // Fixed range: -18 months to +18 months (3 years total)
-    const startDate = startOfMonth(addMonths(today, -18))
-    const endDate = addMonths(startDate, 36)
+    // Fixed range: -2 years to +6 years (8 years total, covers until 2031)
+    const startDate = startOfYear(addYears(today, -2))
+    const totalMonths = 96
+    const endDate = addMonths(startDate, totalMonths)
 
     // Calculate total width ratio: (Total Months / scaleMonths) * 100%
-    // If scaleMonths is 1 (1 month view), we need 36x screen width.
-    // If scaleMonths is 36 (3 years view), we need 1x screen width.
-    const totalMonths = 36
     const widthPercent = (totalMonths / scaleMonths) * 100
 
     const periods: { label: string; date: Date; type: 'day' | 'month'; showLabel?: boolean }[] = []
