@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { addMonths, addDays, startOfMonth, startOfDay, endOfMonth, differenceInDays, format, getDate, startOfYear, addYears } from "date-fns"
 import { ko } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -228,6 +228,9 @@ export function TimelineView() {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [collapsedSchedules, setCollapsedSchedules] = useState<Record<string, boolean>>({})
   const [hoverPosition, setHoverPosition] = useState<{ percent: number; date: Date } | null>(null)
+  const [clipboardTask, setClipboardTask] = useState<Task | null>(null)
+  const [clipboardSheet, setClipboardSheet] = useState<Sheet | null>(null)
+  const [showSheetCopied, setShowSheetCopied] = useState(false)
 
   // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
   useEffect(() => {
@@ -322,6 +325,68 @@ export function TimelineView() {
       })
     }
     setGroupTasks(groupId, (tasks) => updateRecursive(tasks))
+  }
+
+  const cloneTaskWithNewIds = (task: Task): Task => {
+    return {
+      ...task,
+      id: Math.random().toString(36).substr(2, 9),
+      schedules: task.schedules.map(s => ({
+        ...s,
+        id: Math.random().toString(36).substr(2, 9),
+        startDate: new Date(s.startDate),
+        endDate: new Date(s.endDate)
+      })),
+      children: task.children ? task.children.map(cloneTaskWithNewIds) : []
+    }
+  }
+
+  const cloneGroupWithNewIds = (group: TaskGroup): TaskGroup => ({
+    ...group,
+    id: Math.random().toString(36).substr(2, 9),
+    tasks: group.tasks.map(cloneTaskWithNewIds)
+  })
+
+  const cloneSheetWithNewIds = (sheet: Sheet): Sheet => ({
+    ...sheet,
+    id: Math.random().toString(36).substr(2, 9),
+    name: `${sheet.name} (복사)`,
+    groups: sheet.groups.map(cloneGroupWithNewIds)
+  })
+
+  const copyTask = (task: Task) => {
+    // Deep copy to clipboard
+    setClipboardTask(JSON.parse(JSON.stringify(task)))
+  }
+
+  const pasteTaskIntoGroup = (groupId: string) => {
+    if (!clipboardTask) return
+    const newTask = cloneTaskWithNewIds(clipboardTask)
+    setGroupTasks(groupId, (tasks) => [...tasks, newTask])
+  }
+
+  const pasteTaskAsSubtask = (groupId: string, parentId: string) => {
+    if (!clipboardTask) return
+    const newTask = cloneTaskWithNewIds(clipboardTask)
+    updateTaskInGroup(groupId, parentId, (t) => ({
+      ...t,
+      isExpanded: true,
+      children: [...(t.children || []), newTask]
+    }))
+  }
+
+  const copyCurrentSheet = () => {
+    if (!currentSheet) return
+    setClipboardSheet(JSON.parse(JSON.stringify(currentSheet)))
+    setShowSheetCopied(true)
+    setTimeout(() => setShowSheetCopied(false), 2000)
+  }
+
+  const pasteSheet = () => {
+    if (!clipboardSheet) return
+    const newSheet = cloneSheetWithNewIds(clipboardSheet)
+    setSheets(prev => [...prev, newSheet])
+    setCurrentSheetId(newSheet.id)
   }
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -1008,7 +1073,19 @@ export function TimelineView() {
               )}
 
               {isEditing && (
-                <div className="relative z-10 flex items-center opacity-0 group-hover:opacity-100 transition-opacity -mr-4 ml-1">
+                <div className="relative z-10 flex items-center transition-all -mr-4 ml-1">
+                  {isActive && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); copyCurrentSheet() }}
+                      className={cn(
+                        "p-1 rounded-full transition-all duration-300",
+                        showSheetCopied ? "text-emerald-500 scale-125" : "text-muted-foreground hover:text-foreground hover:bg-black/5"
+                      )}
+                      title="시트 복사"
+                    >
+                      {showSheetCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  )}
                   {sheets.length > 1 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteSheet(s.id) }}
@@ -1023,15 +1100,28 @@ export function TimelineView() {
           )
         })}
         {isEditing && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-full ml-4 mb-0.5 hover:bg-muted shadow-sm transition-all hover:scale-110 active:scale-95"
-            onClick={addSheet}
-            title="새 시트 추가"
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
+          <div className="flex items-center gap-2 ml-4 mb-0.5">
+            {clipboardSheet && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/50 text-emerald-600 shadow-sm transition-all hover:scale-110 active:scale-95"
+                onClick={pasteSheet}
+                title="복사한 시트 붙여넣기"
+              >
+                <Clipboard className="h-6 w-6" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full hover:bg-muted shadow-sm transition-all hover:scale-110 active:scale-95"
+              onClick={addSheet}
+              title="새 시트 추가"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </div>
         )}
       </div>
 
@@ -1142,9 +1232,16 @@ export function TimelineView() {
                         </div>
                       )}
                       {isEditing && (
-                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => addTask(group.id)}>
-                          <Plus className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1 ml-auto">
+                          {clipboardTask && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => pasteTaskIntoGroup(group.id)} title="Paste task into group">
+                              <Clipboard className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addTask(group.id)}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                     {/* Placeholder for the timeline part of the group header */}
@@ -1364,6 +1461,14 @@ export function TimelineView() {
                                   </div>
                                   {isEditing && (
                                     <div className="flex items-center group-hover/row:opacity-100 transition-opacity ml-1 shrink-0">
+                                      <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50/50 p-0" onClick={(e) => { e.stopPropagation(); copyTask(task) }} title="Copy task">
+                                        <Copy className="h-3 w-3" />
+                                      </Button>
+                                      {clipboardTask && (
+                                        <Button variant="ghost" size="icon" className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50/50 p-0" onClick={(e) => { e.stopPropagation(); pasteTaskAsSubtask(group.id, task.id) }} title="Paste as subtask">
+                                          <Clipboard className="h-3 w-3" />
+                                        </Button>
+                                      )}
                                       <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); addTask(group.id, task.id) }} title="Add subtask">
                                         <Plus className="h-3 w-3" />
                                       </Button>
