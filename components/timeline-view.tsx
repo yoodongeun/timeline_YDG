@@ -267,7 +267,13 @@ export function TimelineView() {
   ]
 
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
-  const [collapsedSchedules, setCollapsedSchedules] = useState<Record<string, boolean>>({})
+  const [expandedSchedules, setExpandedSchedules] = useState<Record<string, boolean>>({})
+
+  // Reset expansion state when switching tabs
+  useEffect(() => {
+    setExpandedSchedules({})
+  }, [currentSheetId])
+
   const [hoverPosition, setHoverPosition] = useState<{ percent: number; date: Date } | null>(null)
   const [clipboardTask, setClipboardTask] = useState<Task | null>(null)
   const [clipboardSheet, setClipboardSheet] = useState<Sheet | null>(null)
@@ -324,7 +330,7 @@ export function TimelineView() {
 
 
   const toggleScheduleVisibility = (taskId: string) => {
-    setCollapsedSchedules(prev => ({
+    setExpandedSchedules(prev => ({
       ...prev,
       [taskId]: !prev[taskId]
     }))
@@ -1251,14 +1257,14 @@ export function TimelineView() {
                     className="h-6 px-1.5 text-[10px] font-bold gap-1 text-muted-foreground hover:text-foreground ml-1"
                     onClick={() => {
                       const allTasks = flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks))
-                      const hasAnyExpanded = allTasks.some(ft => !collapsedSchedules[ft.task.id])
+                      const hasAnyExpanded = allTasks.some(ft => expandedSchedules[ft.task.id])
                       const newState: Record<string, boolean> = {}
-                      allTasks.forEach(ft => { newState[ft.task.id] = hasAnyExpanded })
-                      setCollapsedSchedules(newState)
+                      allTasks.forEach(ft => { newState[ft.task.id] = !hasAnyExpanded })
+                      setExpandedSchedules(newState)
                     }}
                   >
                     <CalendarIcon className="h-3 w-3" />
-                    {flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks)).some(ft => !collapsedSchedules[ft.task.id]) ? "전체 날짜 접기" : "전체 날짜 펼치기"}
+                    {flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks)).some(ft => expandedSchedules[ft.task.id]) ? "전체 날짜 접기" : "전체 날짜 펼치기"}
                   </Button>
                 </div>
               )}
@@ -1458,9 +1464,9 @@ export function TimelineView() {
                                         size="icon"
                                         className="h-4 w-4 p-0 shrink-0 hover:bg-muted"
                                         onClick={(e) => { e.stopPropagation(); toggleScheduleVisibility(task.id) }}
-                                        title={collapsedSchedules[task.id] ? "날짜 펼치기" : "날짜 접기"}
+                                        title={expandedSchedules[task.id] ? "날짜 접기" : "날짜 펼치기"}
                                       >
-                                        {collapsedSchedules[task.id] ? <ChevronRight className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                                        {expandedSchedules[task.id] ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                                       </Button>
                                     )}
                                     {editingId === task.id ? (
@@ -1554,7 +1560,7 @@ export function TimelineView() {
                                   )}
                                 </div>
                                 {/* Schedule Date Pickers (multiple) */}
-                                {(task.schedules.length <= 1 || !collapsedSchedules[task.id]) && (
+                                {(task.schedules.length <= 1 || expandedSchedules[task.id]) && (
                                   <>
                                     {task.schedules.map((schedule, sIdx) => (
                                       <div
