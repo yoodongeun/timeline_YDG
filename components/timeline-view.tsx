@@ -1718,7 +1718,7 @@ export function TimelineView() {
                             <div key={`bar-${schedule.id}`} className="contents">
                               <div
                                 className="absolute text-[10px] font-bold text-foreground/80 bg-background/40 px-1 rounded-sm whitespace-nowrap z-5"
-                                style={{ left: pos.left, bottom: '24px' }}
+                                style={{ left: pos.left, top: '2px' }}
                               >
                                 {format(schedule.startDate, "yyyy-MM-dd") === format(schedule.endDate, "yyyy-MM-dd")
                                   ? format(schedule.startDate, "M/d (eee)", { locale: ko })
@@ -1726,7 +1726,7 @@ export function TimelineView() {
                               </div>
                               <div
                                 className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10"
-                                style={{ left: pos.left, width: pos.width, bottom: '0px', backgroundColor: barColor }}
+                                style={{ left: pos.left, width: pos.width, top: '16px', backgroundColor: barColor }}
                               />
                             </div>
                           )
