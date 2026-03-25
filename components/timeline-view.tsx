@@ -134,7 +134,7 @@ const flattenTasksWithDepth = (tasks: Task[], depth = 0): FlatTask[] => {
 
 const SIDEBAR_WIDTH = 320 // px
 const SIDEBAR_COLLAPSED_WIDTH = 48 // px
-const ROW_HEIGHT = 60 // px
+const ROW_HEIGHT = 40 // px
 
 const PASSWORD_STORAGE_KEY = "timeline-password"
 
@@ -483,6 +483,9 @@ export function TimelineView() {
   const [draggedScheduleId, setDraggedScheduleId] = useState<string | null>(null)
   const [dragOverScheduleId, setDragOverScheduleId] = useState<string | null>(null)
 
+  const [draggedSheetId, setDraggedSheetId] = useState<string | null>(null)
+  const [dragOverSheetId, setDragOverSheetId] = useState<string | null>(null)
+
   // Group management
   const addGroup = () => {
     setSheets(prev => prev.map(s => {
@@ -647,6 +650,20 @@ export function TimelineView() {
 
   const updateSheetName = (id: string, name: string) => {
     setSheets(prev => prev.map(s => s.id === id ? { ...s, name } : s))
+  }
+
+  const moveSheet = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    setSheets(prev => {
+      const newSheets = [...prev]
+      const sourceIndex = newSheets.findIndex(s => s.id === sourceId)
+      const targetIndex = newSheets.findIndex(s => s.id === targetId)
+      if (sourceIndex > -1 && targetIndex > -1) {
+        const [removed] = newSheets.splice(sourceIndex, 1)
+        newSheets.splice(targetIndex, 0, removed)
+      }
+      return newSheets
+    })
   }
 
   // Move task (Drag and Drop) - Within group
@@ -1027,12 +1044,37 @@ export function TimelineView() {
           return (
             <div
               key={s.id}
+              draggable={isEditing}
+              onDragStart={(e) => {
+                if (!isEditing) return
+                setDraggedSheetId(s.id)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(e) => {
+                if (!isEditing) return
+                e.preventDefault()
+                setDragOverSheetId(s.id)
+              }}
+              onDragLeave={() => setDragOverSheetId(null)}
+              onDrop={(e) => {
+                if (!isEditing || !draggedSheetId) return
+                e.preventDefault()
+                moveSheet(draggedSheetId, s.id)
+                setDraggedSheetId(null)
+                setDragOverSheetId(null)
+              }}
+              onDragEnd={() => {
+                setDraggedSheetId(null)
+                setDragOverSheetId(null)
+              }}
               className={cn(
                 "group relative flex items-center h-8 min-w-[110px] max-w-[220px] px-6 transition-all cursor-pointer",
-                isActive ? "z-10 -mb-[1px] drop-shadow-md" : "opacity-70 hover:opacity-100 hover:z-20"
+                isActive ? "z-10 -mb-[1px] drop-shadow-md" : "opacity-70 hover:opacity-100 hover:z-20",
+                draggedSheetId === s.id && "opacity-30",
+                dragOverSheetId === s.id && "ring-2 ring-primary/50 ring-offset-1 rounded-t-lg z-30"
               )}
               style={{ marginLeft: idx === 0 ? 0 : '-15px' }}
-              onClick={() => setCurrentSheetId(s.id)}
+              onClick={() => !draggedSheetId && setCurrentSheetId(s.id)}
             >
               {/* Trapezoid Background - using pseudo element for the sloped effect */}
               <div
@@ -1373,9 +1415,9 @@ export function TimelineView() {
                                 ) : <div className="w-4" />}
                               </div>
 
-                              <div className="flex-1 min-w-0 flex flex-col justify-center gap-0 py-1">
+                              <div className="flex-1 min-w-0 flex flex-col justify-center gap-0 py-0 px-2">
                                 {/* Name + Type + Actions */}
-                                <div className="flex items-center justify-between w-full h-6">
+                                <div className="flex items-center justify-between w-full h-5">
                                   <div className="flex items-center gap-1 min-w-0 flex-1">
                                     {task.schedules.length > 1 && (
                                       <Button
@@ -1391,7 +1433,7 @@ export function TimelineView() {
                                     {editingId === task.id ? (
                                       <input
                                         autoFocus
-                                        className="w-full bg-transparent border border-primary rounded px-1 text-sm h-6"
+                                        className="w-full bg-transparent border border-primary rounded px-1 text-sm h-5"
                                         defaultValue={task.name}
                                         onBlur={(e) => { updateTaskName(group.id, task.id, e.target.value); setEditingId(null) }}
                                         onKeyDown={(e) => { if (e.key === 'Enter') { updateTaskName(group.id, task.id, (e.target as HTMLInputElement).value); setEditingId(null) } }}
@@ -1611,15 +1653,15 @@ export function TimelineView() {
                             <div key={`bar-${schedule.id}`} className="contents">
                               <div
                                 className="absolute text-[10px] font-bold text-foreground/80 bg-background/40 px-1 rounded-sm whitespace-nowrap z-5"
-                                style={{ left: pos.left, top: '4px' }}
+                                style={{ left: pos.left, bottom: '24px' }}
                               >
                                 {format(schedule.startDate, "yyyy-MM-dd") === format(schedule.endDate, "yyyy-MM-dd")
                                   ? format(schedule.startDate, "M/d (eee)", { locale: ko })
                                   : `${format(schedule.startDate, "M/d (eee)", { locale: ko })} ~ ${format(schedule.endDate, "M/d (eee)", { locale: ko })}`}
                               </div>
                               <div
-                                className="absolute h-8 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10"
-                                style={{ left: pos.left, width: pos.width, top: '18px', backgroundColor: barColor }}
+                                className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10"
+                                style={{ left: pos.left, width: pos.width, bottom: '0px', backgroundColor: barColor }}
                               />
                             </div>
                           )
