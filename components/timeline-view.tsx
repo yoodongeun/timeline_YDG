@@ -227,6 +227,7 @@ export function TimelineView() {
 
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [collapsedSchedules, setCollapsedSchedules] = useState<Record<string, boolean>>({})
+  const [hoverPosition, setHoverPosition] = useState<{ percent: number; date: Date } | null>(null)
 
   // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
   useEffect(() => {
@@ -827,6 +828,23 @@ export function TimelineView() {
     return (currentDuration / totalDuration) * 100
   }, [timelineConfig])
 
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const container = e.currentTarget as HTMLDivElement
+    const rect = container.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const percent = Math.max(0, Math.min(100, (x / rect.width) * 100))
+
+    const { startOfYear, endOfYear } = timelineConfig
+    const totalMs = endOfYear.getTime() - startOfYear.getTime()
+    const date = new Date(startOfYear.getTime() + (totalMs * (percent / 100)))
+
+    setHoverPosition({ percent, date })
+  }, [timelineConfig])
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverPosition(null)
+  }, [])
+
   const scrollToToday = useCallback(() => {
     const el = scrollContainerRef.current
     if (!el || todayPositionPercent == null) return
@@ -1022,6 +1040,8 @@ export function TimelineView() {
         <div
           className="relative min-h-full"
           style={{ width: `${timelineConfig.widthPercent}%`, minWidth: `calc(${sidebarW}px + 800px)` }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         >
           {/* Simple Year Header (sticky) - Between Global Header and Tasks */}
           <div className={cn("sticky top-0 z-40 flex h-6 border-b border-border min-w-full pointer-events-none transition-colors duration-300", activeTabColor.active)}>
@@ -1515,6 +1535,19 @@ export function TimelineView() {
               >
                 <div className="absolute top-0 -translate-x-1/2 bg-red-400 text-white text-[11px] px-2 py-1 rounded-sm whitespace-nowrap font-extrabold shadow-md pointer-events-auto">
                   Today ({format(new Date(), "yyyy-MM-dd")})
+                </div>
+              </div>
+            )}
+
+            {/* Hover Guide Line */}
+            {hoverPosition && (
+              <div
+                className="absolute -top-12 bottom-0 z-[100] pointer-events-none w-0 hover-guide-line"
+                style={{ left: `${hoverPosition.percent}%` }}
+              >
+                <div className="absolute top-[48px] bottom-0 border-l-2 border-slate-900 dark:border-slate-100" />
+                <div className="absolute top-7 -translate-x-1/2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[11px] px-2 py-0.5 rounded-sm whitespace-nowrap font-bold shadow-lg">
+                  {format(hoverPosition.date, "yyyy-MM-dd (eee)", { locale: ko })}
                 </div>
               </div>
             )}
