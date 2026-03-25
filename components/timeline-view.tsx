@@ -222,6 +222,32 @@ export function TimelineView() {
     return "1"
   })
 
+  // Server time offset (serverTime - Date.now())
+  const [timeOffset, setTimeOffset] = useState(0)
+
+  // Fetch server time on mount to calculate offset
+  useEffect(() => {
+    async function syncTime() {
+      try {
+        // Using worldtimeapi.org to get external reference time (Asia/Seoul)
+        const response = await fetch("https://worldtimeapi.org/api/timezone/Asia/Seoul")
+        if (response.ok) {
+          const data = await response.json()
+          const serverDate = new Date(data.datetime)
+          const offset = serverDate.getTime() - Date.now()
+          console.log("🚀 [DEBUG] Server time synced. Offset:", offset, "ms")
+          setTimeOffset(offset)
+        }
+      } catch (err) {
+        console.error("🚀 [DEBUG] Server time sync failed, falling back to local time:", err)
+      }
+    }
+    syncTime()
+  }, [])
+
+  // Helper to get the corrected "now" date based on offset
+  const getCorrectedNow = useCallback(() => new Date(Date.now() + timeOffset), [timeOffset])
+
   // Auto-save whenever sheets or currentSheetId changes
   useEffect(() => {
     if (isLoading || sheets.length === 0) return
@@ -237,7 +263,7 @@ export function TimelineView() {
               currentId: currentSheetId,
               appPassword: appPassword
             },
-            updated_at: new Date().toISOString()
+            updated_at: getCorrectedNow().toISOString()
           })
           .eq('name', 'Sheet 1')
 
@@ -467,7 +493,7 @@ export function TimelineView() {
           .upsert({
             name: 'Sheet 1',
             data: saveDataToUpsert,
-            updated_at: new Date().toISOString()
+            updated_at: getCorrectedNow().toISOString()
           }, { onConflict: 'name' })
           .select()
 
@@ -612,7 +638,7 @@ export function TimelineView() {
       ...t,
       schedules: [
         ...t.schedules,
-        { id: Math.random().toString(36).substr(2, 9), startDate: new Date(), endDate: addMonths(new Date(), 1) }
+        { id: Math.random().toString(36).substr(2, 9), startDate: getCorrectedNow(), endDate: addMonths(getCorrectedNow(), 1) }
       ]
     }))
   }
@@ -629,7 +655,7 @@ export function TimelineView() {
       id: Math.random().toString(36).substr(2, 9),
       name: "New Task",
       status: "To Do",
-      schedules: [{ id: Math.random().toString(36).substr(2, 9), startDate: new Date(), endDate: addMonths(new Date(), 1) }],
+      schedules: [{ id: Math.random().toString(36).substr(2, 9), startDate: getCorrectedNow(), endDate: addMonths(getCorrectedNow(), 1) }],
       type: 'inspection',
       children: [],
       isExpanded: true
@@ -790,7 +816,7 @@ export function TimelineView() {
 
   // Configuration for the full scrollable range
   const timelineConfig = useMemo(() => {
-    const today = new Date()
+    const today = getCorrectedNow()
     // Fixed range: -2 years to +6 years (8 years total, covers until 2031)
     const startDate = startOfYear(addYears(today, -2))
     const totalMonths = 96
@@ -941,7 +967,7 @@ export function TimelineView() {
   }
 
   const todayPositionPercent = useMemo(() => {
-    const today = startOfDay(new Date())
+    const today = startOfDay(getCorrectedNow())
     const { startOfYear, endOfYear } = timelineConfig
     if (today < startOfYear || today >= endOfYear) return null
     const totalDuration = endOfYear.getTime() - startOfYear.getTime()
@@ -1724,7 +1750,7 @@ export function TimelineView() {
                 title="Today"
               >
                 <div className="absolute top-0 -translate-x-1/2 bg-red-400 text-white text-[11px] px-2 py-1 rounded-sm whitespace-nowrap font-extrabold shadow-md pointer-events-auto">
-                  Today ({format(new Date(), "yyyy-MM-dd")})
+                  Today ({format(getCorrectedNow(), "yyyy-MM-dd")})
                 </div>
               </div>
             )}
