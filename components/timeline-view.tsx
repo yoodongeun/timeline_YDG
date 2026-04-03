@@ -1358,6 +1358,40 @@ export function TimelineView() {
             {currentSheet.groups.map((group) => {
               const groupTasks = flattenTasksWithDepth(group.tasks)
 
+              // Computation for "발전소 정비일정" tab + task "정비일정":
+              let maintenanceDaysInCurrentYear = 0
+              let hasMaintenanceTask = false
+              let hasLegalInspection = false
+
+              if (currentSheet.name === "발전소 정비일정") {
+                const targetTasks = groupTasks.filter(gt => gt.task.name === "정비일정")
+                if (targetTasks.length > 0) {
+                  hasMaintenanceTask = true
+                  const currentYearStart = startOfYear(new Date()).getTime()
+                  const currentYearEnd = endOfYear(new Date()).getTime()
+
+                  targetTasks.forEach(gt => {
+                    gt.task.schedules.forEach(schedule => {
+                      const startMs = schedule.startDate.getTime()
+                      const endMs = schedule.endDate.getTime()
+
+                      const intStartMs = Math.max(startMs, currentYearStart)
+                      const intEndMs = Math.min(endMs, currentYearEnd)
+
+                      if (intStartMs <= intEndMs) {
+                        const s = startOfDay(new Date(intStartMs))
+                        const e = startOfDay(new Date(intEndMs))
+                        maintenanceDaysInCurrentYear += differenceInDays(e, s) + 1
+
+                        if (schedule.memo && schedule.memo.includes("법정검사")) {
+                          hasLegalInspection = true
+                        }
+                      }
+                    })
+                  })
+                }
+              }
+
               return (
                 <div key={group.id} className="relative group/section first:border-t-0 border-t-4 border-slate-400 dark:border-slate-600">
                   {/* Group Header */}
@@ -1376,9 +1410,16 @@ export function TimelineView() {
                         />
                       ) : (
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
-                            {group.name}
-                          </span>
+                          <div className="flex items-center min-w-0 shrinks-1 truncate">
+                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
+                              {group.name}
+                            </span>
+                            {hasMaintenanceTask && (
+                              <span className="ml-1 text-sm font-bold text-slate-500 dark:text-slate-500 shrink-0">
+                                ({new Date().getFullYear() % 100}년 전체정비{hasLegalInspection ? "+법정검사" : ""} {maintenanceDaysInCurrentYear}일)
+                              </span>
+                            )}
+                          </div>
                           {isEditing && (
                             <div className="flex items-center gap-0.5 opacity-0 group-hover/section:opacity-100 transition-opacity">
                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingGroupId(group.id)}>
