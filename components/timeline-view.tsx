@@ -1570,6 +1570,27 @@ export function TimelineView() {
                                         )}
                                       </div>
                                     )}
+                                    <div
+                                      className={cn(
+                                        "flex items-center justify-center w-4 h-4 rounded shrink-0",
+                                        isEditing ? "cursor-pointer hover:bg-muted" : "pointer-events-none"
+                                      )}
+                                      onClick={(e) => {
+                                        if (!isEditing) return
+                                        e.stopPropagation()
+                                        updateTaskType(group.id, task.id, task.type === 'inspection' ? 'maintenance' : 'inspection')
+                                      }}
+                                      title={isEditing ? "Click to toggle type" : undefined}
+                                    >
+                                      <span className={cn(
+                                        "text-[9px] font-black w-3.5 h-3.5 flex items-center justify-center rounded leading-none border-[0.5px]",
+                                        task.type === 'inspection'
+                                          ? "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800"
+                                          : "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800"
+                                      )}>
+                                        {task.type === 'inspection' ? "B" : "L"}
+                                      </span>
+                                    </div>
                                     {isEditing && task.type !== 'maintenance' && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -1597,27 +1618,7 @@ export function TimelineView() {
                                         </PopoverContent>
                                       </Popover>
                                     )}
-                                    <div
-                                      className={cn(
-                                        "flex items-center rounded px-0.5 shrink-0",
-                                        isEditing ? "cursor-pointer hover:bg-muted" : "pointer-events-none"
-                                      )}
-                                      onClick={(e) => {
-                                        if (!isEditing) return
-                                        e.stopPropagation()
-                                        updateTaskType(group.id, task.id, task.type === 'inspection' ? 'maintenance' : 'inspection')
-                                      }}
-                                      title={isEditing ? "Click to toggle type" : undefined}
-                                    >
-                                      <span className={cn(
-                                        "text-[9px] font-bold px-1.5 py-0.5 rounded leading-none border-[0.5px]",
-                                        task.type === 'inspection'
-                                          ? "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800"
-                                          : "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800"
-                                      )}>
-                                        {task.type === 'inspection' ? "바 표시" : "점선 표시"}
-                                      </span>
-                                    </div>
+
                                   </div>
                                   {isEditing && (
                                     <div className="flex items-center group-hover/row:opacity-100 transition-opacity ml-1 shrink-0">
