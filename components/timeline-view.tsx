@@ -56,7 +56,6 @@ const SCALE_OPTIONS = [
   { value: 9, label: "9개월" },
   { value: 12, label: "1년" },
   { value: 15.6, label: "1.3년" },
-  { value: 96, label: "8년" },
 ] as const
 type ScaleMonths = (typeof SCALE_OPTIONS)[number]["value"]
 
@@ -944,7 +943,25 @@ export function TimelineView() {
       yearRunner = addYears(yearRunner, 1)
     }
 
-    return { periods, subHeaders, yearLabels, startOfYear: startDate, endOfYear: endDate, widthPercent, totalMonths }
+    // 5. Generate Month Labels (Simple format)
+    const monthLabels: { label: string; leftPercent: number; isExactStart: boolean }[] = []
+    let monthRunner = startOfMonth(startDate)
+    while (monthRunner <= endDate) {
+      if (monthRunner >= startDate) {
+        const runnerMs = monthRunner.getTime()
+        const leftPercent = ((runnerMs - startMs) / totalMs) * 100
+        // Don't draw month label exactly at the same place as Year label if it overlaps too much, 
+        // but since they have different design, it's fine.
+        monthLabels.push({
+          label: format(monthRunner, "M"),
+          leftPercent,
+          isExactStart: true
+        })
+      }
+      monthRunner = addMonths(monthRunner, 1)
+    }
+
+    return { periods, subHeaders, yearLabels, monthLabels, startOfYear: startDate, endOfYear: endDate, widthPercent, totalMonths }
   }, [scaleMonths])
 
   const calculateSchedulePosition = (schedule: Schedule) => {
@@ -975,17 +992,37 @@ export function TimelineView() {
     return (currentDuration / totalDuration) * 100
   }, [timelineConfig])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const container = e.currentTarget as HTMLDivElement
-    const rect = container.getBoundingClientRect()
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const innerContainer = e.currentTarget.querySelector('.timeline-inner-container')
+    if (!innerContainer) return
+    const rect = innerContainer.getBoundingClientRect()
     const x = e.clientX - rect.left
-    const percent = Math.max(0, Math.min(100, (x / rect.width) * 100))
+    const percent = (x / rect.width) * 100
 
     const { startOfYear, endOfYear } = timelineConfig
-    const totalMs = endOfYear.getTime() - startOfYear.getTime()
-    const date = new Date(startOfYear.getTime() + (totalMs * (percent / 100)))
+    const totalDuration = endOfYear.getTime() - startOfYear.getTime()
+    const hoverTime = startOfYear.getTime() + (totalDuration * (percent / 100))
+    let hoverDate = new Date(hoverTime)
 
-    setHoverPosition({ percent, date })
+    // Snap to nearest local midnight if within 4 pixels of the boundary to fix precision issues
+    const pxToMs = totalDuration / rect.width
+    const snapMs = 4 * pxToMs
+    const hoverStartOfDay = startOfDay(hoverDate)
+    const msSinceStart = hoverDate.getTime() - hoverStartOfDay.getTime()
+    const msInDay = 24 * 60 * 60 * 1000
+
+    if (msSinceStart < snapMs) {
+      hoverDate = hoverStartOfDay
+    } else if (msInDay - msSinceStart < snapMs) {
+      hoverDate = addDays(hoverStartOfDay, 1)
+    }
+
+    // Only set hover if within timeline bounds (after sidebar)
+    if (x >= 0 && x <= rect.width) {
+      setHoverPosition({ percent, date: hoverDate })
+    } else {
+      setHoverPosition(null)
+    }
   }, [timelineConfig])
 
   const handleMouseLeave = useCallback(() => {
@@ -1240,8 +1277,8 @@ export function TimelineView() {
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
-          {/* Simple Year Header (sticky) - Between Global Header and Tasks */}
-          <div className={cn("sticky top-0 z-40 flex h-6 border-b border-border min-w-full pointer-events-none transition-colors duration-300", activeTabColor.active)}>
+          {/* Simple Year & Month Header (sticky) - Between Global Header and Tasks */}
+          <div className={cn("sticky top-0 z-40 flex h-9 border-b border-border min-w-full pointer-events-none transition-colors duration-300", activeTabColor.active)}>
             {/* Matching Sidebar Width gap with robust masking background to hide scrolling labels */}
             <div className={cn("sticky left-0 z-20 shrink-0 border-r border-border transition-colors duration-300", activeTabColor.active)} style={{ width: `${sidebarW}px`, pointerEvents: 'auto' }} />
 
@@ -1256,7 +1293,7 @@ export function TimelineView() {
                     className="absolute top-0 bottom-0 flex translate-y-0.5"
                     style={{ left: `${yl.leftPercent}%`, width: `${widthPercent}%` }}
                   >
-                    {yl.isExactStart && <div className="absolute left-0 top-0 h-2 border-l-4 border-foreground" />}
+                    {yl.isExactStart && <div className="absolute left-0 top-0 h-3 border-l-4 border-foreground" />}
                     <div className="sticky flex items-start" style={{ left: `${sidebarW}px` }}>
                       <span className="text-sm font-black text-foreground ml-1.5 leading-none">
                         {yl.label}
@@ -1265,6 +1302,19 @@ export function TimelineView() {
                   </div>
                 )
               })}
+
+              {timelineConfig.monthLabels.map((ml, idx) => (
+                <div
+                  key={`m-h-${idx}`}
+                  className="absolute bottom-0 flex flex-col justify-end items-start"
+                  style={{ left: `${ml.leftPercent}%` }}
+                >
+                  <span className="absolute bottom-1.5 left-1 text-[11px] font-semibold text-muted-foreground leading-none">
+                    {ml.label}
+                  </span>
+                  <div className="h-2 border-l border-foreground/30" />
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1379,7 +1429,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-full text-white text-[10px] px-1 py-0.5 whitespace-nowrap font-medium z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-full text-white text-[10px] px-1 py-0.5 leading-none whitespace-nowrap font-medium z-20 rounded-t-sm"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.startDate, "M/d (eee)", { locale: ko })}
@@ -1399,7 +1449,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-[2px] text-white text-[10px] px-1 py-0.5 whitespace-nowrap font-medium z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-[2px] text-white text-[10px] px-1 py-0.5 leading-none whitespace-nowrap font-medium z-20 rounded-t-sm"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.endDate, "M/d (eee)", { locale: ko })}
