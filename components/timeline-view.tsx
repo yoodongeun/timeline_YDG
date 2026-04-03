@@ -993,8 +993,7 @@ export function TimelineView() {
   }, [timelineConfig])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const innerContainer = e.currentTarget.querySelector('.timeline-inner-container')
-    if (!innerContainer) return
+    const innerContainer = e.currentTarget
     const rect = innerContainer.getBoundingClientRect()
     const x = e.clientX - rect.left
     const percent = (x / rect.width) * 100
