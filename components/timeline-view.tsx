@@ -993,7 +993,8 @@ export function TimelineView() {
   }, [timelineConfig])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const innerContainer = e.currentTarget
+    const innerContainer = e.currentTarget.querySelector('.timeline-inner-container')
+    if (!innerContainer) return
     const rect = innerContainer.getBoundingClientRect()
     const x = e.clientX - rect.left
     const percent = (x / rect.width) * 100
@@ -1269,12 +1270,15 @@ export function TimelineView() {
       </div>
 
       {/* Main Content - Single scroll container */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <div
-          className="relative min-h-full"
+          className="relative min-h-full timeline-inner-container"
           style={{ width: `${timelineConfig.widthPercent}%`, minWidth: `calc(${sidebarW}px + 800px)` }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
         >
           {/* Simple Year & Month Header (sticky) - Between Global Header and Tasks */}
           <div className={cn("sticky top-0 z-40 flex h-9 border-b border-border min-w-full pointer-events-none transition-colors duration-300", activeTabColor.active)}>
