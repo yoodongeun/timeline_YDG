@@ -1387,7 +1387,7 @@ export function TimelineView() {
       {/* Main Content - Single scroll container */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50"
+        className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", currentSheet?.name === "월간회의" && "thick-scrollbar")}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
@@ -1423,25 +1423,33 @@ export function TimelineView() {
 
               {timelineConfig.monthLabels.map((ml, idx) => {
                 const isMonthlyMeeting = currentSheet.name === "월간회의"
+                const widthPercent = idx === timelineConfig.monthLabels.length - 1 ? 100 - ml.leftPercent : timelineConfig.monthLabels[idx + 1].leftPercent - ml.leftPercent
+
                 return (
                   <div
                     key={`m-h-${idx}`}
-                    className="absolute bottom-0 flex flex-col justify-end items-start"
-                    style={{ left: `${ml.leftPercent}%` }}
+                    className="absolute bottom-0 flex flex-col justify-end items-start h-full max-h-5"
+                    style={{ left: `${ml.leftPercent}%`, width: `${widthPercent}%` }}
                   >
-                    <span
-                      className={cn(
-                        "absolute left-1 leading-none",
-                        isMonthlyMeeting
-                          ? "-bottom-0.5 text-[13px] font-bold text-foreground"
-                          : "bottom-1.5 text-[11px] font-semibold text-muted-foreground"
-                      )}
+                    <div
+                      className={isMonthlyMeeting ? "sticky bottom-1.5" : "absolute bottom-1.5"}
+                      style={{ left: isMonthlyMeeting ? `${sidebarW}px` : '0px' }}
                     >
-                      {isMonthlyMeeting ? `${ml.label}월` : ml.label}
-                    </span>
+                      <span
+                        className={cn(
+                          "whitespace-nowrap ml-1 leading-none block",
+                          isMonthlyMeeting
+                            ? "text-[13px] font-bold text-foreground"
+                            : "text-[11px] font-semibold text-muted-foreground"
+                        )}
+                      >
+                        {isMonthlyMeeting ? `${ml.label}월` : ml.label}
+                      </span>
+                    </div>
+                    {/* Maintain absolute positioning for the tick marks */}
                     <div
                       className={cn(
-                        "border-l",
+                        "absolute bottom-0 left-0 border-l",
                         isMonthlyMeeting ? "h-3 border-l-[2px] border-foreground/60" : "h-2 border-foreground/30"
                       )}
                     />
