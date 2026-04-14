@@ -52,6 +52,7 @@ type Status = "To Do" | "In Progress" | "Done"
 
 const SCALE_OPTIONS = [
   { value: 1, label: "1달" },
+  { value: 2, label: "2달" },
   { value: 3, label: "3달" },
   { value: 6, label: "6개월" },
   { value: 9, label: "9개월" },
@@ -1140,23 +1141,27 @@ export function TimelineView() {
 
           <span className="text-sm text-muted-foreground">Zoom</span>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
-            {SCALE_OPTIONS.map(({ value, label }) => (
-              <Button
-                key={value}
-                variant={(!customStartDate && scaleMonths === value) ? "default" : "ghost"}
-                size="sm"
-                onClick={() => {
-                  setScaleMonths(value)
-                  if (customStartDate || customEndDate) {
-                    setCustomStartDate(null)
-                    setCustomEndDate(null)
-                  }
-                }}
-                className="h-8 px-2.5 text-xs font-medium"
-              >
-                {label}
-              </Button>
-            ))}
+            {SCALE_OPTIONS.map(({ value, label }) => {
+              if (value === 2 && currentSheet?.name !== "월간회의") return null
+
+              return (
+                <Button
+                  key={value}
+                  variant={(!customStartDate && scaleMonths === value) ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => {
+                    setScaleMonths(value)
+                    if (customStartDate || customEndDate) {
+                      setCustomStartDate(null)
+                      setCustomEndDate(null)
+                    }
+                  }}
+                  className="h-8 px-2.5 text-xs font-medium"
+                >
+                  {label}
+                </Button>
+              )
+            })}
           </div>
 
           <Dialog open={isRangeDialogOpen} onOpenChange={setIsRangeDialogOpen}>
