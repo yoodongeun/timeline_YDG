@@ -6,6 +6,7 @@ import { ko } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { createClient } from '@supabase/supabase-js'
@@ -300,6 +301,10 @@ export function TimelineView() {
   }, [currentSheetId])
 
   const [hoverPosition, setHoverPosition] = useState<{ percent: number; date: Date } | null>(null)
+  const [isMarkerEnabled, setIsMarkerEnabled] = useState(true)
+  const [customStartDate, setCustomStartDate] = useState<Date | null>(null)
+  const [customEndDate, setCustomEndDate] = useState<Date | null>(null)
+  const [isRangeDialogOpen, setIsRangeDialogOpen] = useState(false)
   const [clipboardTask, setClipboardTask] = useState<Task | null>(null)
   const [clipboardSheet, setClipboardSheet] = useState<Sheet | null>(null)
   const [showSheetCopied, setShowSheetCopied] = useState(false)
@@ -1017,19 +1022,24 @@ export function TimelineView() {
       hoverDate = addDays(hoverStartOfDay, 1)
     }
 
-    // Only set hover if within timeline bounds (after sidebar)
-    if (x >= 0 && x <= rect.width) {
+    const scrollContainerRect = e.currentTarget.getBoundingClientRect()
+    const screenX = e.clientX - scrollContainerRect.left
+    const currentSidebarW = isCollapsed ? 60 : 320
+
+    // Only set hover if within timeline bounds (after sidebar visually)
+    if (isMarkerEnabled && screenX > currentSidebarW && x >= 0 && x <= rect.width) {
       setHoverPosition({ percent, date: hoverDate })
     } else {
       setHoverPosition(null)
     }
-  }, [timelineConfig])
+  }, [timelineConfig, isCollapsed, isMarkerEnabled])
 
   const handleMouseLeave = useCallback(() => {
     setHoverPosition(null)
   }, [])
 
   const scrollToToday = useCallback(() => {
+    if (customStartDate) return // Disable scroll to center if custom period is active
     const el = scrollContainerRef.current
     if (!el || todayPositionPercent == null) return
     const maxScroll = el.scrollWidth - el.clientWidth
@@ -1041,7 +1051,7 @@ export function TimelineView() {
     const targetScroll = (todayPositionPercent / 100) * contentWidth - viewportWidth * 0.3
 
     el.scrollTo({ left: Math.max(0, Math.min(targetScroll, maxScroll)), behavior: "smooth" })
-  }, [todayPositionPercent])
+  }, [todayPositionPercent, customStartDate])
 
   // Attempt to scroll today into view after data loading is complete
   useEffect(() => {
@@ -1056,6 +1066,40 @@ export function TimelineView() {
     const t = setTimeout(scrollToToday, 100)
     return () => clearTimeout(t)
   }, [scaleMonths, scrollToToday])
+
+  // Zoom-to-fit whenever customStartDate/customEndDate changes
+  useEffect(() => {
+    if (customStartDate && customEndDate) {
+      const msDiff = customEndDate.getTime() - customStartDate.getTime()
+      const daysDiff = Math.max(1, msDiff / (1000 * 60 * 60 * 24))
+      const monthsDiff = daysDiff / 30.436875
+
+      const newScaleMonths = Math.max(1, monthsDiff * 1.5) as ScaleMonths // padding
+      setScaleMonths(newScaleMonths)
+
+      // Use recursive requestAnimationFrame to wait for new flex boundaries to apply
+      const performScroll = (attemptsLeft: number = 10) => {
+        const el = scrollContainerRef.current
+        if (!el || attemptsLeft === 0) return
+
+        const { startOfYear, endOfYear } = timelineConfig
+        const totalDuration = endOfYear.getTime() - startOfYear.getTime()
+        const startOffset = customStartDate.getTime() - startOfYear.getTime()
+
+        const contentWidth = el.scrollWidth
+        const targetScroll = (startOffset / totalDuration) * contentWidth
+
+        if (el.scrollWidth > el.clientWidth + 10) {
+          el.scrollTo({ left: targetScroll, behavior: "smooth" })
+        } else {
+          requestAnimationFrame(() => performScroll(attemptsLeft - 1))
+        }
+      }
+
+      requestAnimationFrame(() => performScroll())
+      setIsRangeDialogOpen(false)
+    }
+  }, [customStartDate, customEndDate, timelineConfig])
 
   const sidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
 
@@ -1085,14 +1129,85 @@ export function TimelineView() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant={isMarkerEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsMarkerEnabled(!isMarkerEnabled)}
+            className="h-8 px-2.5 text-xs font-medium"
+          >
+            마우스마커 사용
+          </Button>
+
           <span className="text-sm text-muted-foreground">Zoom</span>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
             {SCALE_OPTIONS.map(({ value, label }) => (
-              <Button key={value} variant={scaleMonths === value ? "default" : "ghost"} size="sm" onClick={() => setScaleMonths(value)} className="h-8 px-2.5 text-xs font-medium">
+              <Button
+                key={value}
+                variant={(!customStartDate && scaleMonths === value) ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setScaleMonths(value)
+                  if (customStartDate || customEndDate) {
+                    setCustomStartDate(null)
+                    setCustomEndDate(null)
+                  }
+                }}
+                className="h-8 px-2.5 text-xs font-medium"
+              >
                 {label}
               </Button>
             ))}
           </div>
+
+          <Dialog open={isRangeDialogOpen} onOpenChange={setIsRangeDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant={customStartDate ? "default" : "outline"} size="sm" className="h-8 px-2.5 text-xs font-medium gap-1 whitespace-nowrap">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                기간설정
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[640px]">
+              <DialogHeader>
+                <DialogTitle>타임라인 기간 설정</DialogTitle>
+              </DialogHeader>
+              <div className="flex gap-4 p-2 items-start justify-center">
+                <div className="flex flex-col gap-2 flex-1 items-center border border-border rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/50">
+                  <span className="font-semibold text-sm text-foreground">시작일</span>
+                  <Calendar
+                    mode="single"
+                    selected={customStartDate || undefined}
+                    onSelect={(d) => d && setCustomStartDate(d)}
+                    defaultMonth={new Date()}
+                    className="bg-card rounded-md shadow-sm border"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 flex-1 items-center border border-border rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/50">
+                  <span className="font-semibold text-sm text-foreground">종료일</span>
+                  <Calendar
+                    mode="single"
+                    selected={customEndDate || undefined}
+                    onSelect={(d) => d && setCustomEndDate(d)}
+                    defaultMonth={customStartDate || new Date()}
+                    disabled={(date) => customStartDate ? date < startOfDay(customStartDate) : false}
+                    className="bg-card rounded-md shadow-sm border"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <div className="flex items-center justify-between w-full mt-2">
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    setCustomStartDate(null);
+                    setCustomEndDate(null);
+                    setIsRangeDialogOpen(false);
+                    setScaleMonths(12); // Reset zoom
+                  }}>
+                    적용 초기화 (기본뷰복귀)
+                  </Button>
+                  <Button size="sm" onClick={() => setIsRangeDialogOpen(false)}>적용하기</Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <div className="flex items-center gap-2">
             {isEditing && (
               <Button
@@ -1306,18 +1421,33 @@ export function TimelineView() {
                 )
               })}
 
-              {timelineConfig.monthLabels.map((ml, idx) => (
-                <div
-                  key={`m-h-${idx}`}
-                  className="absolute bottom-0 flex flex-col justify-end items-start"
-                  style={{ left: `${ml.leftPercent}%` }}
-                >
-                  <span className="absolute bottom-1.5 left-1 text-[11px] font-semibold text-muted-foreground leading-none">
-                    {ml.label}
-                  </span>
-                  <div className="h-2 border-l border-foreground/30" />
-                </div>
-              ))}
+              {timelineConfig.monthLabels.map((ml, idx) => {
+                const isMonthlyMeeting = currentSheet.name === "월간회의"
+                return (
+                  <div
+                    key={`m-h-${idx}`}
+                    className="absolute bottom-0 flex flex-col justify-end items-start"
+                    style={{ left: `${ml.leftPercent}%` }}
+                  >
+                    <span
+                      className={cn(
+                        "absolute left-1 leading-none",
+                        isMonthlyMeeting
+                          ? "-bottom-0.5 text-[13px] font-bold text-foreground"
+                          : "bottom-1.5 text-[11px] font-semibold text-muted-foreground"
+                      )}
+                    >
+                      {isMonthlyMeeting ? `${ml.label}월` : ml.label}
+                    </span>
+                    <div
+                      className={cn(
+                        "border-l",
+                        isMonthlyMeeting ? "h-3 border-l-[2px] border-foreground/60" : "h-2 border-foreground/30"
+                      )}
+                    />
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -1355,6 +1485,19 @@ export function TimelineView() {
 
           {/* Rows area */}
           <div className="relative">
+            {/* Monthly Full-Height Grid Lines (Only for 월간회의) */}
+            {currentSheet.name === "월간회의" && (
+              <div className="absolute inset-0 pointer-events-none z-0">
+                {timelineConfig.monthLabels.map((ml, idx) => (
+                  <div
+                    key={`full-grid-${idx}`}
+                    className="absolute top-0 bottom-0 border-l border-foreground/20"
+                    style={{ left: `${ml.leftPercent}%` }}
+                  />
+                ))}
+              </div>
+            )}
+
             {currentSheet.groups.map((group) => {
               const groupTasks = flattenTasksWithDepth(group.tasks)
 
@@ -1473,19 +1616,36 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-full text-white text-[10px] px-1 py-0.5 leading-none whitespace-nowrap font-medium z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-full text-white text-[11.5px] px-1.5 py-0.5 leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.startDate, "M/d (eee)", { locale: ko })}
                                 </div>
                               </div>
+                              {/* Memo wrapper for sticky pushing */}
                               {schedule.memo && (
                                 <div
-                                  className="absolute text-[11px] font-semibold whitespace-nowrap text-center -translate-x-1/2 z-20"
-                                  style={{ left: `${pos.leftPercent + (pos.endPercent - pos.leftPercent) / 2}%`, top: '-55px', color: scheduleColor }}
+                                  className="absolute pointer-events-none z-20 flex justify-center items-start"
+                                  style={{
+                                    left: `${pos.leftPercent}%`,
+                                    width: `${pos.endPercent - pos.leftPercent}%`,
+                                    top: '-55px',
+                                    height: '55px'
+                                  }}
                                 >
-                                  {/* Memo display adjusted for group visibility */}
-                                  <span className="bg-background/80 px-1 rounded shadow-sm">{schedule.memo}</span>
+                                  <div
+                                    className={cn(
+                                      "text-[13.5px] font-bold whitespace-nowrap pointer-events-auto",
+                                      currentSheet.name === "월간회의" ? "sticky" : ""
+                                    )}
+                                    style={{
+                                      left: currentSheet.name === "월간회의" ? `${sidebarW + 20}px` : undefined,
+                                      color: scheduleColor,
+                                      height: 'max-content'
+                                    }}
+                                  >
+                                    <span className="bg-background/80 px-1 rounded shadow-sm inline-block">{schedule.memo}</span>
+                                  </div>
                                 </div>
                               )}
                               <div
@@ -1493,7 +1653,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-[2px] text-white text-[10px] px-1 py-0.5 leading-none whitespace-nowrap font-medium z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-1.5 py-0.5 leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.endDate, "M/d (eee)", { locale: ko })}
