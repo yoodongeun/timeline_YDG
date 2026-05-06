@@ -1498,18 +1498,16 @@ export function TimelineView() {
 
           {/* Rows area */}
           <div className="relative">
-            {/* Monthly Full-Height Grid Lines (Only for 월간회의) */}
-            {currentSheet.name === "월간회의" && (
-              <div className="absolute inset-0 pointer-events-none z-0">
-                {timelineConfig.monthLabels.map((ml, idx) => (
-                  <div
-                    key={`full-grid-${idx}`}
-                    className="absolute top-0 bottom-0 border-l border-foreground/20"
-                    style={{ left: `${ml.leftPercent}%` }}
-                  />
-                ))}
-              </div>
-            )}
+            {/* Monthly Full-Height Grid Lines */}
+            <div className="absolute inset-0 pointer-events-none z-0">
+              {timelineConfig.monthLabels.map((ml, idx) => (
+                <div
+                  key={`full-grid-${idx}`}
+                  className="absolute top-0 bottom-0 border-l border-foreground/20"
+                  style={{ left: `${ml.leftPercent}%` }}
+                />
+              ))}
+            </div>
 
             {currentSheet.groups.map((group) => {
               const groupTasks = flattenTasksWithDepth(group.tasks)
@@ -1647,12 +1645,9 @@ export function TimelineView() {
                                   }}
                                 >
                                   <div
-                                    className={cn(
-                                      "text-[13.5px] font-bold whitespace-nowrap pointer-events-auto",
-                                      currentSheet.name === "월간회의" ? "sticky" : ""
-                                    )}
+                                    className="text-[13.5px] font-bold whitespace-nowrap pointer-events-auto sticky"
                                     style={{
-                                      left: currentSheet.name === "월간회의" ? `${sidebarW + 20}px` : undefined,
+                                      left: `${sidebarW + 20}px`,
                                       color: scheduleColor,
                                       height: 'max-content'
                                     }}
