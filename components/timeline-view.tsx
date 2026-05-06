@@ -303,6 +303,7 @@ export function TimelineView() {
 
   const [hoverPosition, setHoverPosition] = useState<{ percent: number; date: Date } | null>(null)
   const [isMarkerEnabled, setIsMarkerEnabled] = useState(true)
+  const [isShowTodayLine, setIsShowTodayLine] = useState(true)
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null)
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null)
   const [isRangeDialogOpen, setIsRangeDialogOpen] = useState(false)
@@ -1130,6 +1131,14 @@ export function TimelineView() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant={isShowTodayLine ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsShowTodayLine(!isShowTodayLine)}
+            className="h-8 px-2.5 text-xs font-medium"
+          >
+            Today선 표시
+          </Button>
           <Button
             variant={isMarkerEnabled ? "default" : "outline"}
             size="sm"
@@ -2007,7 +2016,7 @@ export function TimelineView() {
             })}
 
             {/* Today Marker - Moved outside the group loop as it's global */}
-            {todayPositionPercent != null && (
+            {isShowTodayLine && todayPositionPercent != null && (
               <div
                 className="absolute -top-12 bottom-0 z-20 border-l border-red-500/80 shadow-[0_0_2px_rgba(239,68,68,0.3)] pointer-events-none"
                 style={{ left: `${todayPositionPercent}%` }}
