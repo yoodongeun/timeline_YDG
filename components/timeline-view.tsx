@@ -1436,7 +1436,6 @@ export function TimelineView() {
               })}
 
               {timelineConfig.monthLabels.map((ml, idx) => {
-                const isMonthlyMeeting = currentSheet.name === "월간회의"
                 const widthPercent = idx === timelineConfig.monthLabels.length - 1 ? 100 - ml.leftPercent : timelineConfig.monthLabels[idx + 1].leftPercent - ml.leftPercent
 
                 return (
@@ -1446,26 +1445,18 @@ export function TimelineView() {
                     style={{ left: `${ml.leftPercent}%`, width: `${widthPercent}%` }}
                   >
                     <div
-                      className={isMonthlyMeeting ? "sticky bottom-1.5" : "absolute bottom-1.5"}
-                      style={{ left: isMonthlyMeeting ? `${sidebarW}px` : '0px' }}
+                      className="sticky bottom-1.5"
+                      style={{ left: `${sidebarW}px` }}
                     >
                       <span
-                        className={cn(
-                          "whitespace-nowrap ml-1 leading-none block",
-                          isMonthlyMeeting
-                            ? "text-[13px] font-bold text-foreground"
-                            : "text-[11px] font-semibold text-muted-foreground"
-                        )}
+                        className="whitespace-nowrap ml-1 leading-none block text-[13px] font-bold text-foreground"
                       >
-                        {isMonthlyMeeting ? `${ml.label}월` : ml.label}
+                        {`${ml.label}월`}
                       </span>
                     </div>
                     {/* Maintain absolute positioning for the tick marks */}
                     <div
-                      className={cn(
-                        "absolute bottom-0 left-0 border-l",
-                        isMonthlyMeeting ? "h-3 border-l-[2px] border-foreground/60" : "h-2 border-foreground/30"
-                      )}
+                      className="absolute bottom-0 left-0 border-l h-3 border-l-[2px] border-foreground/60"
                     />
                   </div>
                 )
