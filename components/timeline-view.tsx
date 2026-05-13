@@ -1401,7 +1401,7 @@ export function TimelineView() {
       {/* Main Content - Single scroll container */}
       <div
         ref={scrollContainerRef}
-        className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", currentSheet?.name === "월간회의" && "thick-scrollbar")}
+        className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", "thick-scrollbar")}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
