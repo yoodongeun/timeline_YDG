@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react"
-import { addMonths, addDays, startOfMonth, startOfDay, endOfMonth, differenceInDays, format, getDate, startOfYear, addYears, endOfYear } from "date-fns"
+import { addMonths, addDays, startOfMonth, startOfDay, endOfDay, endOfMonth, differenceInDays, format, getDate, startOfYear, addYears, endOfYear } from "date-fns"
 import { ko } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard } from "lucide-react"
@@ -976,7 +976,7 @@ export function TimelineView() {
     const totalDuration = endOfYear.getTime() - startOfYear.getTime()
 
     const taskStart = schedule.startDate.getTime() - startOfYear.getTime()
-    const taskEnd = schedule.endDate.getTime() - startOfYear.getTime()
+    const taskEnd = endOfDay(schedule.endDate).getTime() - startOfYear.getTime()
 
     const left = (taskStart / totalDuration) * 100
     // Minimum width of 0.04% for ultra-thin but visible single-day tasks
@@ -991,7 +991,7 @@ export function TimelineView() {
   }
 
   const todayPositionPercent = useMemo(() => {
-    const today = startOfDay(getCorrectedNow())
+    const today = getCorrectedNow()
     const { startOfYear, endOfYear } = timelineConfig
     if (today < startOfYear || today >= endOfYear) return null
     const totalDuration = endOfYear.getTime() - startOfYear.getTime()
