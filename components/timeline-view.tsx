@@ -510,6 +510,7 @@ export function TimelineView() {
 
   const [selectedLine, setSelectedLine] = useState<HorizontalLine | null>(null)
   const [isLineEditOpen, setIsLineEditOpen] = useState(false)
+  const [hoveredLineId, setHoveredLineId] = useState<string | null>(null)
 
   const [isEditing, setIsEditing] = useState(false)
 
@@ -2509,7 +2510,7 @@ export function TimelineView() {
               <div
                 key={line.id}
                 className={cn(
-                  "absolute z-30 flex items-center group/line bg-transparent pointer-events-auto",
+                  "absolute z-30 flex items-center bg-transparent pointer-events-auto",
                   isEditing && !isDrawingMode ? "cursor-ns-resize" : "cursor-default"
                 )}
                 style={{
@@ -2519,6 +2520,8 @@ export function TimelineView() {
                   height: '20px',
                   marginTop: '-10px',
                 }}
+                onMouseEnter={() => setHoveredLineId(line.id)}
+                onMouseLeave={() => setHoveredLineId(null)}
                 onMouseDown={(e) => {
                   if (!isEditing || isDrawingMode) return
                   e.stopPropagation()
@@ -2544,17 +2547,23 @@ export function TimelineView() {
                 />
 
                 {/* Constant Center Name Label */}
-                <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 bg-background/90 dark:bg-slate-900/90 text-foreground text-[10px] font-medium px-1 rounded shadow-sm pointer-events-none select-none whitespace-nowrap z-10">
+                <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] font-bold px-1.5 py-0.5 rounded border border-border/80 shadow-md pointer-events-none select-none whitespace-nowrap z-10">
                   {line.name}
                 </span>
 
                 {/* Start Date Label (Left End) - Hover Popup to the Left */}
-                <span className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] font-bold px-1.5 py-0.5 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap opacity-0 group-hover/line:opacity-100 transition-opacity z-50">
+                <span className={cn(
+                  "absolute right-full mr-0.5 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[9px] font-bold px-1 py-px rounded-sm border border-border/60 shadow-sm pointer-events-none select-none whitespace-nowrap transition-opacity z-50",
+                  hoveredLineId === line.id ? "opacity-100" : "opacity-0"
+                )}>
                   {format(line.startDate, "yyyy-MM-dd")}
                 </span>
 
                 {/* End Date Label (Right End) - Hover Popup to the Right */}
-                <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] font-bold px-1.5 py-0.5 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap opacity-0 group-hover/line:opacity-100 transition-opacity z-50">
+                <span className={cn(
+                  "absolute left-full ml-0.5 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[9px] font-bold px-1 py-px rounded-sm border border-border/60 shadow-sm pointer-events-none select-none whitespace-nowrap transition-opacity z-50",
+                  hoveredLineId === line.id ? "opacity-100" : "opacity-0"
+                )}>
                   {format(line.endDate, "yyyy-MM-dd")}
                 </span>
                 {/* Left End Handle */}
