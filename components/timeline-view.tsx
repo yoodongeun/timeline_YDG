@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { addMonths, addDays, startOfMonth, startOfDay, endOfDay, endOfMonth, differenceInDays, format, getDate, startOfYear, addYears, endOfYear } from "date-fns"
 import { ko } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
@@ -86,10 +86,21 @@ interface TaskGroup {
   tasks: Task[]
 }
 
+interface HorizontalLine {
+  id: string
+  name: string
+  startDate: Date
+  endDate: Date
+  color?: string
+  style?: 'solid' | 'dashed' | 'dotted'
+  top: number
+}
+
 interface Sheet {
   id: string
   name: string
   groups: TaskGroup[]
+  lines?: HorizontalLine[]
 }
 
 const BAR_COLORS = [
@@ -165,7 +176,12 @@ const serializeGroups = (groups: TaskGroup[]): any[] => {
 function serializeSheets(sheets: Sheet[]): any[] {
   return sheets.map(s => ({
     ...s,
-    groups: serializeGroups(s.groups)
+    groups: serializeGroups(s.groups),
+    lines: s.lines ? s.lines.map(l => ({
+      ...l,
+      startDate: l.startDate.toISOString(),
+      endDate: l.endDate.toISOString()
+    })) : []
   }))
 }
 
@@ -193,6 +209,13 @@ const deserializeGroups = (data: any[]): TaskGroup[] => {
 // Deserialize sheets from JSON
 function deserializeSheets(data: any[]): Sheet[] {
   return data.map(s => {
+    const lines = s.lines ? s.lines.map((l: any) => ({
+      ...l,
+      startDate: new Date(l.startDate),
+      endDate: new Date(l.endDate),
+      top: typeof l.top === 'number' ? l.top : 100
+    })) : []
+
     if ((s as any).tasks && !s.groups) {
       return {
         id: s.id,
@@ -201,12 +224,14 @@ function deserializeSheets(data: any[]): Sheet[] {
           id: 'default-group',
           name: 'Tasks',
           tasks: deserializeTasks((s as any).tasks)
-        }]
+        }],
+        lines
       }
     }
     return {
       ...s,
-      groups: deserializeGroups(s.groups || [])
+      groups: deserializeGroups(s.groups || []),
+      lines
     }
   })
 }
@@ -470,6 +495,21 @@ export function TimelineView() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
+  const [editingLineId, setEditingLineId] = useState<string | null>(null)
+
+  const [isDrawingMode, setIsDrawingMode] = useState(false)
+  const [drawingStart, setDrawingStart] = useState<{ xPercent: number; y: number } | null>(null)
+  const [drawingCurrent, setDrawingCurrent] = useState<{ xPercent: number; y: number } | null>(null)
+
+  const [draggedLineId, setDraggedLineId] = useState<string | null>(null)
+  const [draggedLineStartY, setDraggedLineStartY] = useState<number>(0)
+  const [draggedLineStartTop, setDraggedLineStartTop] = useState<number>(0)
+
+  const [resizingLineId, setResizingLineId] = useState<string | null>(null)
+  const [resizingEdge, setResizingEdge] = useState<'start' | 'end' | null>(null)
+
+  const [selectedLine, setSelectedLine] = useState<HorizontalLine | null>(null)
+  const [isLineEditOpen, setIsLineEditOpen] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
 
@@ -739,6 +779,96 @@ export function TimelineView() {
     })
   }
 
+  // Guidelines management actions
+  const addHorizontalLine = () => {
+    const newLine: HorizontalLine = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: `가이드라인 ${((currentSheet?.lines || []).length + 1)}`,
+      startDate: getCorrectedNow(),
+      endDate: addMonths(getCorrectedNow(), 1),
+      color: '#ef4444',
+      style: 'solid',
+      top: 150
+    }
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        return {
+          ...s,
+          lines: [...(s.lines || []), newLine]
+        }
+      }
+      return s
+    }))
+  }
+
+  const deleteHorizontalLine = (lineId: string) => {
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        return {
+          ...s,
+          lines: (s.lines || []).filter(l => l.id !== lineId)
+        }
+      }
+      return s
+    }))
+  }
+
+  const updateLineName = (lineId: string, name: string) => {
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        return {
+          ...s,
+          lines: (s.lines || []).map(l => l.id === lineId ? { ...l, name } : l)
+        }
+      }
+      return s
+    }))
+  }
+
+  const updateLineDate = (lineId: string, field: 'startDate' | 'endDate', newDate: Date) => {
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        return {
+          ...s,
+          lines: (s.lines || []).map(l => l.id === lineId ? { ...l, [field]: newDate } : l)
+        }
+      }
+      return s
+    }))
+  }
+
+  const updateLineColor = (lineId: string, color: string) => {
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        return {
+          ...s,
+          lines: (s.lines || []).map(l => l.id === lineId ? { ...l, color } : l)
+        }
+      }
+      return s
+    }))
+  }
+
+  const toggleLineStyle = (lineId: string) => {
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        return {
+          ...s,
+          lines: (s.lines || []).map(l => {
+            if (l.id === lineId) {
+              const styles: ('solid' | 'dashed' | 'dotted')[] = ['solid', 'dashed', 'dotted']
+              const curIdx = styles.indexOf(l.style || 'solid')
+              const nextStyle = styles[(curIdx + 1) % styles.length]
+              return { ...l, style: nextStyle }
+            }
+            return l
+          })
+        }
+      }
+      return s
+    }))
+  }
+
   // Move task (Drag and Drop) - Within group
   const moveTask = (groupId: string, sourceId: string, targetId: string) => {
     if (sourceId === targetId) return
@@ -999,6 +1129,161 @@ export function TimelineView() {
     return (currentDuration / totalDuration) * 100
   }, [timelineConfig])
 
+  const getDateFromPercent = useCallback((pct: number) => {
+    const { startOfYear, endOfYear } = timelineConfig
+    const totalDuration = endOfYear.getTime() - startOfYear.getTime()
+    const time = startOfYear.getTime() + (pct / 100) * totalDuration
+    return new Date(time)
+  }, [timelineConfig])
+
+  const handleLineDragStart = (id: string, clientY: number, currentTop: number) => {
+    setDraggedLineId(id)
+    setDraggedLineStartY(clientY)
+    setDraggedLineStartTop(currentTop)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const xInContainer = e.clientX - rect.left
+    const sidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
+    
+    // Ignore clicks in the sidebar
+    if (xInContainer < sidebarW) return
+
+    if (isDrawingMode) {
+      e.preventDefault()
+      const xPercent = Math.min(100, Math.max(0, (xInContainer / rect.width) * 100))
+      const y = e.clientY - rect.top
+      
+      setDrawingStart({ xPercent, y })
+      setDrawingCurrent({ xPercent, y })
+    }
+  }
+
+  // Handle mouse move/up globally for drawing, dragging, and resizing
+  useEffect(() => {
+    if (!draggedLineId && !drawingStart && !resizingLineId) return
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const container = scrollContainerRef.current
+      if (!container) return
+      
+      const innerContainer = container.firstElementChild as HTMLDivElement
+      if (!innerContainer) return
+      
+      const rect = innerContainer.getBoundingClientRect()
+      
+      if (draggedLineId) {
+        const deltaY = e.clientY - draggedLineStartY
+        const newTop = Math.max(24, draggedLineStartTop + deltaY) // Bound so it doesn't go offscreen/under header
+        setSheets(prev => prev.map(s => {
+          if (s.id === currentSheetId) {
+            return {
+              ...s,
+              lines: (s.lines || []).map(l => l.id === draggedLineId ? { ...l, top: newTop } : l)
+            }
+          }
+          return s
+        }))
+      } else if (isDrawingMode && drawingStart) {
+        const xInContainer = e.clientX - rect.left
+        const xPercent = Math.min(100, Math.max(0, (xInContainer / rect.width) * 100))
+        const y = e.clientY - rect.top
+        
+        setDrawingCurrent({ xPercent, y })
+      } else if (resizingLineId && resizingEdge) {
+        const xInContainer = e.clientX - rect.left
+        const xPercent = Math.min(100, Math.max(0, (xInContainer / rect.width) * 100))
+        const newDate = getDateFromPercent(xPercent)
+        
+        setSheets(prev => prev.map(s => {
+          if (s.id === currentSheetId) {
+            return {
+              ...s,
+              lines: (s.lines || []).map(l => {
+                if (l.id === resizingLineId) {
+                  if (resizingEdge === 'start') {
+                    return { ...l, startDate: newDate < l.endDate ? newDate : l.endDate }
+                  } else {
+                    return { ...l, endDate: newDate > l.startDate ? newDate : l.startDate }
+                  }
+                }
+                return l
+              })
+            }
+          }
+          return s
+        }))
+      }
+    }
+
+    const handleWindowMouseUp = (e: MouseEvent) => {
+      const container = scrollContainerRef.current
+      if (!container) return
+      
+      const innerContainer = container.firstElementChild as HTMLDivElement
+      if (!innerContainer) return
+      
+      const rect = innerContainer.getBoundingClientRect()
+      
+      if (isDrawingMode && drawingStart && drawingCurrent) {
+        const xInContainer = e.clientX - rect.left
+        const lastXPercent = Math.min(100, Math.max(0, (xInContainer / rect.width) * 100))
+        
+        const startX = Math.min(drawingStart.xPercent, lastXPercent)
+        const endX = Math.max(drawingStart.xPercent, lastXPercent)
+        const y = drawingStart.y
+
+        // Reset drawing state
+        setDrawingStart(null)
+        setDrawingCurrent(null)
+        setIsDrawingMode(false)
+
+        // Calculate dates
+        const startDate = getDateFromPercent(startX)
+        const endDate = getDateFromPercent(endX)
+
+        const newLine: HorizontalLine = {
+          id: Math.random().toString(36).substr(2, 9),
+          name: "새 가이드라인",
+          startDate,
+          endDate,
+          color: '#ef4444',
+          style: 'solid',
+          top: y
+        }
+
+        setSheets(prev => prev.map(s => {
+          if (s.id === currentSheetId) {
+            return {
+              ...s,
+              lines: [...(s.lines || []), newLine]
+            }
+          }
+          return s
+        }))
+
+        setSelectedLine(newLine)
+        setIsLineEditOpen(true)
+      } else {
+        if (draggedLineId) {
+          setDraggedLineId(null)
+        }
+        if (resizingLineId) {
+          setResizingLineId(null)
+          setResizingEdge(null)
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', handleWindowMouseMove)
+    window.addEventListener('mouseup', handleWindowMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove)
+      window.removeEventListener('mouseup', handleWindowMouseUp)
+    }
+  }, [draggedLineId, drawingStart, drawingCurrent, isDrawingMode, draggedLineStartY, draggedLineStartTop, currentSheetId, isCollapsed, getDateFromPercent, resizingLineId, resizingEdge])
+
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const innerContainer = e.currentTarget.querySelector('.timeline-inner-container')
     if (!innerContainer) return
@@ -1241,6 +1526,16 @@ export function TimelineView() {
             >
               Today
             </Button>
+            {isEditing && (
+              <Button
+                variant={isDrawingMode ? "destructive" : "outline"}
+                size="sm"
+                onClick={() => setIsDrawingMode(!isDrawingMode)}
+                className="h-7 shrink-0 px-2 text-xs font-medium"
+              >
+                {isDrawingMode ? "그리기 중단" : "수평선 그리기"}
+              </Button>
+            )}
             <Button
               variant={isEditing ? "default" : "outline"}
               size="sm"
@@ -1406,8 +1701,9 @@ export function TimelineView() {
         onMouseLeave={handleMouseLeave}
       >
         <div
-          className="relative min-h-full timeline-inner-container"
+          className={cn("relative min-h-full timeline-inner-container", isDrawingMode && "cursor-crosshair select-none")}
           style={{ width: `${timelineConfig.widthPercent}%`, minWidth: `calc(${sidebarW}px + 800px)` }}
+          onMouseDown={handleMouseDown}
         >
           {/* Simple Year & Month Header (sticky) - Between Global Header and Tasks */}
           <div className={cn("sticky top-0 z-40 flex h-9 border-b border-border min-w-full pointer-events-none transition-colors duration-300", activeTabColor.active)}>
@@ -2048,6 +2344,388 @@ export function TimelineView() {
               </div>
             )}
           </div>
+
+          {/* Horizontal Lines (Guidelines) Section */}
+          {((currentSheet?.lines && currentSheet.lines.length > 0) || isEditing) && (
+            <div className="relative group/section border-t-4 border-slate-400 dark:border-slate-600">
+              {/* Section Header */}
+              <div className="flex border-b border-border min-w-full group-hover/section:bg-accent/5 transition-colors">
+                <div
+                  className="sticky left-0 z-30 flex items-center gap-2 border-r border-border bg-slate-50 dark:bg-slate-900 px-4 py-3"
+                  style={{ width: `${sidebarW}px`, height: '56px' }}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate">
+                      수평 가이드라인
+                    </span>
+                  </div>
+                  {isEditing && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={addHorizontalLine} title="수평선 추가">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {/* Placeholder for the timeline part of the section header */}
+                <div className="flex-1" />
+              </div>
+
+              {/* Lines List */}
+              <div className="relative">
+                {(currentSheet?.lines || []).map((line) => {
+                  return (
+                    <div
+                      key={line.id}
+                      className="relative flex items-center border-b border-border hover:bg-black/5 dark:hover:bg-white/5 transition-colors group/row"
+                      style={{ minHeight: `${ROW_HEIGHT}px` }}
+                    >
+                      {/* Left: Line Info (sticky) */}
+                      <div
+                        className="sticky left-0 z-20 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-accent/50 transition-colors"
+                        style={{ width: `${sidebarW}px`, minHeight: `${ROW_HEIGHT}px`, paddingLeft: '16px', paddingRight: '16px' }}
+                      >
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0 py-1">
+                          {/* Name + Actions */}
+                          <div className="flex items-center justify-between w-full h-6">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                              {editingLineId === line.id ? (
+                                <input
+                                  autoFocus
+                                  className="w-full bg-transparent border border-primary rounded px-1 text-sm h-6"
+                                  defaultValue={line.name}
+                                  onBlur={(e) => { updateLineName(line.id, e.target.value); setEditingLineId(null) }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { updateLineName(line.id, (e.target as HTMLInputElement).value); setEditingLineId(null) } }}
+                                />
+                              ) : (
+                                <div
+                                  className="group/name flex items-center gap-1 font-medium text-sm text-foreground cursor-pointer truncate"
+                                  onDoubleClick={() => isEditing && setEditingLineId(line.id)}
+                                >
+                                  <span className="truncate">{line.name}</span>
+                                  {isEditing && (
+                                    <Pencil
+                                      className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0"
+                                      onClick={(e) => { e.stopPropagation(); setEditingLineId(line.id) }}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                              
+                              {isEditing && (
+                                <>
+                                  {/* Color Picker */}
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        className="w-3.5 h-3.5 rounded-full shrink-0 border border-white shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                                        style={{ backgroundColor: line.color || '#ef4444' }}
+                                        title="Line color"
+                                      />
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2" align="start">
+                                      <div className="grid grid-cols-10 gap-1.5">
+                                        {BAR_COLORS.map((c) => (
+                                          <button
+                                            key={c.value}
+                                            className={cn(
+                                              "w-6 h-6 rounded-full hover:scale-110 transition-transform",
+                                              (line.color || '#ef4444') === c.value && "ring-2 ring-offset-1 " + c.ring
+                                            )}
+                                            style={{ backgroundColor: c.value }}
+                                            onClick={() => updateLineColor(line.id, c.value)}
+                                            title={c.name}
+                                          />
+                                        ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                  
+                                  {/* Line Style Toggle */}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 text-muted-foreground hover:text-foreground text-[10px] font-bold border border-border shrink-0"
+                                    onClick={() => toggleLineStyle(line.id)}
+                                    title="선 스타일 변경"
+                                  >
+                                    {line.style === 'solid' ? '—' : line.style === 'dashed' ? '- -' : '···'}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                            {isEditing && (
+                              <div className="flex items-center group-hover/row:opacity-100 transition-opacity ml-1 shrink-0">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-5 w-5 text-muted-foreground hover:text-foreground" 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setSelectedLine(line); 
+                                    setIsLineEditOpen(true); 
+                                  }} 
+                                  title="설정"
+                                >
+                                  <Settings className="h-3 w-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); if (confirm("가이드라인을 삭제하시겠습니까?")) deleteHorizontalLine(line.id) }} title="Delete">
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Date Picker Row */}
+                          <div className="group/schedule relative flex items-center gap-1 text-[11px] font-medium text-foreground/80 py-0.5 px-1 rounded transition-all">
+                            <InlineDatePicker
+                              date={line.startDate}
+                              isEditing={isEditing}
+                              onSelect={(date) => updateLineDate(line.id, 'startDate', date)}
+                            />
+                            <span className="shrink-0 font-bold">-</span>
+                            <InlineDatePicker
+                              date={line.endDate}
+                              isEditing={isEditing}
+                              onSelect={(date) => updateLineDate(line.id, 'endDate', date)}
+                              defaultMonth={line.startDate}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Right: Just a placeholder empty cell */}
+                      <div className="flex-1" />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Global Draggable/Clickable Horizontal Lines Overlay */}
+          {(currentSheet?.lines || []).map((line) => {
+            const pos = calculateSchedulePosition(line as unknown as Schedule)
+            const lineColor = line.color || '#ef4444'
+            return (
+              <div
+                key={line.id}
+                className={cn(
+                  "absolute z-30 flex items-center group pointer-events-auto",
+                  isEditing && !isDrawingMode ? "cursor-ns-resize" : "cursor-default"
+                )}
+                style={{
+                  left: pos.left,
+                  width: pos.width,
+                  top: `${line.top}px`,
+                  height: '20px',
+                  marginTop: '-10px',
+                }}
+                onMouseDown={(e) => {
+                  if (!isEditing || isDrawingMode) return
+                  e.stopPropagation()
+                  e.preventDefault()
+                  handleLineDragStart(line.id, e.clientY, line.top)
+                }}
+                onDoubleClick={(e) => {
+                  if (!isEditing) return
+                  e.stopPropagation()
+                  setSelectedLine(line)
+                  setIsLineEditOpen(true)
+                }}
+                title={isEditing ? "더블클릭하여 편집, 드래그하여 상하이동" : undefined}
+              >
+                {/* Line Body */}
+                <div
+                  className="w-full border-t relative"
+                  style={{
+                    borderColor: lineColor,
+                    borderStyle: line.style || 'solid',
+                    borderWidth: line.style === 'solid' ? '3px' : '2px',
+                  }}
+                >
+                  {/* Constant Center Name Label */}
+                  <span className="absolute left-1/2 -translate-x-1/2 -top-3.5 bg-background/90 dark:bg-slate-900/90 text-foreground text-[10px] font-medium px-1 rounded shadow-sm pointer-events-none select-none whitespace-nowrap z-10">
+                    {line.name}
+                  </span>
+
+                  {/* Start Date Label (Left End) - Constantly Visible (Inside Line) */}
+                  <span className="absolute left-1.5 -top-3.5 bg-background/90 dark:bg-slate-900/90 text-foreground text-[9px] px-1 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap z-30">
+                    {format(line.startDate, "yyyy-MM-dd")}
+                  </span>
+
+                  {/* End Date Label (Right End) - Constantly Visible (Inside Line) */}
+                  <span className="absolute right-1.5 -top-3.5 bg-background/90 dark:bg-slate-900/90 text-foreground text-[9px] px-1 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap z-30">
+                    {format(line.endDate, "yyyy-MM-dd")}
+                  </span>
+                </div>
+                {/* Left End Handle */}
+                <div
+                  className={cn(
+                    "absolute left-0 w-3.5 h-3.5 rounded-full -translate-x-1/2 border border-background shadow-md z-40 transition-all hover:scale-125",
+                    isEditing && !isDrawingMode ? "cursor-ew-resize bg-primary active:scale-95" : "pointer-events-none"
+                  )}
+                  style={{ backgroundColor: isEditing && !isDrawingMode ? undefined : lineColor }}
+                  onMouseDown={(e) => {
+                    if (!isEditing || isDrawingMode) return
+                    e.stopPropagation()
+                    e.preventDefault()
+                    setResizingLineId(line.id)
+                    setResizingEdge('start')
+                  }}
+                />
+                {/* Right End Handle */}
+                <div
+                  className={cn(
+                    "absolute right-0 w-3.5 h-3.5 rounded-full translate-x-1/2 border border-background shadow-md z-40 transition-all hover:scale-125",
+                    isEditing && !isDrawingMode ? "cursor-ew-resize bg-primary active:scale-95" : "pointer-events-none"
+                  )}
+                  style={{ backgroundColor: isEditing && !isDrawingMode ? undefined : lineColor }}
+                  onMouseDown={(e) => {
+                    if (!isEditing || isDrawingMode) return
+                    e.stopPropagation()
+                    e.preventDefault()
+                    setResizingLineId(line.id)
+                    setResizingEdge('end')
+                  }}
+                />
+              </div>
+            )
+          })}
+
+          {/* Drawing Preview Line */}
+          {isDrawingMode && drawingStart && drawingCurrent && (
+            <div
+              className="absolute border-t-2 border-primary border-dashed flex items-center justify-between pointer-events-none z-50"
+              style={{
+                left: `${Math.min(drawingStart.xPercent, drawingCurrent.xPercent)}%`,
+                width: `${Math.abs(drawingStart.xPercent - drawingCurrent.xPercent)}%`,
+                top: `${drawingStart.y}px`,
+                height: '2px',
+              }}
+            >
+              <div className="w-2 h-2 rounded-full bg-primary -ml-1 border border-background" />
+              <div className="w-2 h-2 rounded-full bg-primary -mr-1 border border-background" />
+              <div className="absolute left-1/2 -translate-x-1/2 -top-6 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap z-50">
+                그리는 중: {format(getDateFromPercent(Math.min(drawingStart.xPercent, drawingCurrent.xPercent)), "yyyy-MM-dd")} ~ {format(getDateFromPercent(Math.max(drawingStart.xPercent, drawingCurrent.xPercent)), "yyyy-MM-dd")}
+              </div>
+            </div>
+          )}
+
+          {/* Dialog modal for editing guidelines */}
+          {selectedLine && (
+            <Dialog open={isLineEditOpen} onOpenChange={setIsLineEditOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>가이드라인 설정</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">이름</span>
+                    <input
+                      className="col-span-3 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      value={selectedLine.name}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setSelectedLine(prev => prev ? { ...prev, name: val } : null)
+                        updateLineName(selectedLine.id, val)
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">시작일</span>
+                    <div className="col-span-3 border rounded px-3 py-1.5 text-sm bg-background shadow-sm">
+                      <InlineDatePicker
+                        date={selectedLine.startDate}
+                        isEditing={true}
+                        onSelect={(date) => {
+                          setSelectedLine(prev => prev ? { ...prev, startDate: date } : null)
+                          updateLineDate(selectedLine.id, 'startDate', date)
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">종료일</span>
+                    <div className="col-span-3 border rounded px-3 py-1.5 text-sm bg-background shadow-sm">
+                      <InlineDatePicker
+                        date={selectedLine.endDate}
+                        isEditing={true}
+                        onSelect={(date) => {
+                          setSelectedLine(prev => prev ? { ...prev, endDate: date } : null)
+                          updateLineDate(selectedLine.id, 'endDate', date)
+                        }}
+                        defaultMonth={selectedLine.startDate}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">색상</span>
+                    <div className="col-span-3 flex flex-wrap gap-1.5">
+                      {BAR_COLORS.map((c) => (
+                        <button
+                          key={c.value}
+                          className={cn(
+                            "w-6 h-6 rounded-full hover:scale-110 transition-transform",
+                            (selectedLine.color || '#ef4444') === c.value && "ring-2 ring-primary ring-offset-1"
+                          )}
+                          style={{ backgroundColor: c.value }}
+                          onClick={() => {
+                            setSelectedLine(prev => prev ? { ...prev, color: c.value } : null)
+                            updateLineColor(selectedLine.id, c.value)
+                          }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <span className="text-right text-sm font-medium">종류</span>
+                    <div className="col-span-3 flex gap-2">
+                      {(['solid', 'dashed', 'dotted'] as const).map((styleOpt) => (
+                        <Button
+                          key={styleOpt}
+                          variant={selectedLine.style === styleOpt ? "default" : "outline"}
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => {
+                            setSelectedLine(prev => prev ? { ...prev, style: styleOpt } : null)
+                            setSheets(prev => prev.map(s => {
+                              if (s.id === currentSheetId) {
+                                  return {
+                                    ...s,
+                                    lines: (s.lines || []).map(l => l.id === selectedLine.id ? { ...l, style: styleOpt } : l)
+                                  }
+                              }
+                              return s
+                            }))
+                          }}
+                        >
+                          {styleOpt === 'solid' ? '실선' : styleOpt === 'dashed' ? '파선' : '점선'}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter className="flex justify-between items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm("가이드라인을 삭제하시겠습니까?")) {
+                        deleteHorizontalLine(selectedLine.id)
+                        setIsLineEditOpen(false)
+                      }
+                    }}
+                  >
+                    삭제
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => setIsLineEditOpen(false)}>
+                    확인
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
     </div>
