@@ -2547,13 +2547,13 @@ export function TimelineView() {
                     {line.name}
                   </span>
 
-                  {/* Start Date Label (Left End) - Constantly Visible (Inside Line) */}
-                  <span className="absolute left-1.5 -top-3.5 bg-background/90 dark:bg-slate-900/90 text-foreground text-[9px] px-1 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap z-30">
+                  {/* Start Date Label (Left End) - Hover Popup to the Left */}
+                  <span className="absolute right-full mr-2 -top-3.5 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] font-bold px-1.5 py-0.5 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
                     {format(line.startDate, "yyyy-MM-dd")}
                   </span>
 
-                  {/* End Date Label (Right End) - Constantly Visible (Inside Line) */}
-                  <span className="absolute right-1.5 -top-3.5 bg-background/90 dark:bg-slate-900/90 text-foreground text-[9px] px-1 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap z-30">
+                  {/* End Date Label (Right End) - Hover Popup to the Right */}
+                  <span className="absolute left-full ml-2 -top-3.5 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] font-bold px-1.5 py-0.5 rounded border border-border shadow-sm pointer-events-none select-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
                     {format(line.endDate, "yyyy-MM-dd")}
                   </span>
                 </div>
