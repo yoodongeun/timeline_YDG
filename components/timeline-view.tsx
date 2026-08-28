@@ -149,7 +149,7 @@ const SIDEBAR_WIDTH = 320 // px
 const SIDEBAR_COLLAPSED_WIDTH = 48 // px
 const ROW_HEIGHT = 40 // px
 
-const PASSWORD_STORAGE_KEY = "timeline-password"
+const PASSWORD_STORAGE_KEY = "timeline-app-password"
 
 // Serialize tasks to JSON-safe format (Date -> string)
 function serializeTasks(tasks: Task[]): any[] {
@@ -948,7 +948,10 @@ export function TimelineView() {
   }
 
   const [scaleMonths, setScaleMonths] = useState<ScaleMonths>(2)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(max-width: 768px)").matches
+  })
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Configuration for the full scrollable range
@@ -1394,12 +1397,12 @@ export function TimelineView() {
   if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-lg">데이터베이스와 동기화 중입니다...</div>
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-screen min-w-0 flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-6 py-1.5">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-foreground" />
-          <h1 className="text-lg font-semibold text-foreground">Timeline View (Ver 5.7)</h1>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-1.5 sm:flex-nowrap sm:px-6">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <CalendarDays className="h-4 w-4 shrink-0 text-foreground sm:h-5 sm:w-5" />
+          <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">Timeline View (Ver 5.7)</h1>
           <div className="flex items-center gap-1.5 ml-2">
             {saveStatus === 'saving' && (
               <span className="flex items-center gap-1 text-xs text-amber-500 animate-pulse">
@@ -1416,7 +1419,7 @@ export function TimelineView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-3">
           <Button
             variant={isShowTodayLine ? "default" : "outline"}
             size="sm"
@@ -1707,7 +1710,7 @@ export function TimelineView() {
           {/* Simple Year & Month Header (sticky) - Between Global Header and Tasks */}
           <div className={cn("sticky top-0 z-40 flex h-9 border-b border-border min-w-full pointer-events-none transition-colors duration-300", activeTabColor.active)}>
             {/* Matching Sidebar Width gap with robust masking background to hide scrolling labels */}
-            <div className={cn("sticky left-0 z-20 shrink-0 border-r border-border transition-colors duration-300", activeTabColor.active)} style={{ width: `${sidebarW}px`, pointerEvents: 'auto' }} />
+            <div className={cn("max-md:static sticky left-0 z-20 shrink-0 border-r border-border transition-colors duration-300", activeTabColor.active)} style={{ width: `${sidebarW}px`, pointerEvents: 'auto' }} />
 
             <div className="absolute inset-0 z-10 pointer-events-none">
               {timelineConfig.yearLabels.map((yl, idx) => {
@@ -1761,7 +1764,7 @@ export function TimelineView() {
 
           {/* Sidebar Header (sticky - moved below Year Header) */}
           <div
-            className="sticky left-0 top-6 z-30 border-b border-r border-border bg-card"
+            className="max-md:static sticky left-0 top-6 z-30 border-b border-r border-border bg-card"
             style={{ width: `${sidebarW}px` }}
           >
             <div className="flex items-center px-4 py-3">
@@ -1846,7 +1849,7 @@ export function TimelineView() {
                   {/* Group Header */}
                   <div className="flex border-b border-border min-w-full group-hover/section:bg-accent/5 transition-colors">
                     <div
-                      className="sticky left-0 z-30 flex items-center gap-2 border-r border-border bg-slate-50 dark:bg-slate-900 px-4 py-3"
+                      className="max-md:static sticky left-0 z-30 flex items-center gap-2 border-r border-border bg-slate-50 dark:bg-slate-900 px-4 py-3"
                       style={{ width: `${sidebarW}px`, height: '56px' }}
                     >
                       {editingGroupId === group.id ? (
@@ -2024,7 +2027,7 @@ export function TimelineView() {
 
                         {/* Left: Task Info (sticky) */}
                         <div
-                          className="sticky left-0 z-30 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800 transition-colors"
+                          className="max-md:static sticky left-0 z-30 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800 transition-colors"
                           style={{ width: `${sidebarW}px`, minHeight: `${ROW_HEIGHT}px`, paddingLeft: `${depth * 20 + 16}px`, paddingRight: '16px' }}
                         >
                           {!isCollapsed && (
@@ -2326,7 +2329,7 @@ export function TimelineView() {
             {isEditing && (
               <div className="flex border-b border-border bg-slate-50/20 dark:bg-slate-900/10">
                 <div
-                  className="sticky left-0 z-30 flex items-center justify-center border-r border-border min-h-[48px] bg-slate-50 dark:bg-slate-900"
+                  className="max-md:static sticky left-0 z-30 flex items-center justify-center border-r border-border min-h-[48px] bg-slate-50 dark:bg-slate-900"
                   style={{ width: `${sidebarW}px` }}
                 >
                   <Button
@@ -2350,7 +2353,7 @@ export function TimelineView() {
               {/* Section Header */}
               <div className="flex border-b border-border min-w-full group-hover/section:bg-accent/5 transition-colors">
                 <div
-                  className="sticky left-0 z-30 flex items-center gap-2 border-r border-border bg-slate-50 dark:bg-slate-900 px-4 py-3"
+                  className="max-md:static sticky left-0 z-30 flex items-center gap-2 border-r border-border bg-slate-50 dark:bg-slate-900 px-4 py-3"
                   style={{ width: `${sidebarW}px`, height: '56px' }}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -2379,7 +2382,7 @@ export function TimelineView() {
                     >
                       {/* Left: Line Info (sticky) */}
                       <div
-                        className="sticky left-0 z-30 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800 transition-colors"
+                        className="max-md:static sticky left-0 z-30 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800 transition-colors"
                         style={{ width: `${sidebarW}px`, minHeight: `${ROW_HEIGHT}px`, paddingLeft: '16px', paddingRight: '16px' }}
                       >
                         <div className="flex-1 min-w-0 flex flex-col justify-center gap-0 py-1">
