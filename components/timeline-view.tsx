@@ -2024,7 +2024,7 @@ export function TimelineView() {
 
                         {/* Left: Task Info (sticky) */}
                         <div
-                          className="sticky left-0 z-20 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-accent/50 transition-colors"
+                          className="sticky left-0 z-30 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800 transition-colors"
                           style={{ width: `${sidebarW}px`, minHeight: `${ROW_HEIGHT}px`, paddingLeft: `${depth * 20 + 16}px`, paddingRight: '16px' }}
                         >
                           {!isCollapsed && (
@@ -2326,7 +2326,7 @@ export function TimelineView() {
             {isEditing && (
               <div className="flex border-b border-border bg-slate-50/20 dark:bg-slate-900/10">
                 <div
-                  className="sticky left-0 z-30 flex items-center justify-center border-r border-border min-h-[48px]"
+                  className="sticky left-0 z-30 flex items-center justify-center border-r border-border min-h-[48px] bg-slate-50 dark:bg-slate-900"
                   style={{ width: `${sidebarW}px` }}
                 >
                   <Button
@@ -2379,7 +2379,7 @@ export function TimelineView() {
                     >
                       {/* Left: Line Info (sticky) */}
                       <div
-                        className="sticky left-0 z-20 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-accent/50 transition-colors"
+                        className="sticky left-0 z-30 shrink-0 flex items-center border-r border-border bg-card group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800 transition-colors"
                         style={{ width: `${sidebarW}px`, minHeight: `${ROW_HEIGHT}px`, paddingLeft: '16px', paddingRight: '16px' }}
                       >
                         <div className="flex-1 min-w-0 flex flex-col justify-center gap-0 py-1">
@@ -2508,7 +2508,7 @@ export function TimelineView() {
               <div
                 key={line.id}
                 className={cn(
-                  "absolute z-30 flex items-center bg-transparent pointer-events-auto",
+                  "absolute z-25 flex items-center bg-transparent pointer-events-auto",
                   isEditing && !isDrawingMode ? "cursor-ns-resize" : "cursor-default"
                 )}
                 style={{
