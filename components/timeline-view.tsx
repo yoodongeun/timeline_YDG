@@ -1924,7 +1924,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-full text-white text-[11.5px] px-1.5 py-0.5 leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-full text-white text-[11.5px] px-[3px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.startDate, "M/d (eee)", { locale: ko })}
@@ -1958,7 +1958,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-1.5 py-0.5 leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[3px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.endDate, "M/d (eee)", { locale: ko })}
@@ -2547,13 +2547,13 @@ export function TimelineView() {
                 />
 
                 {/* Constant Center Name Label */}
-                <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] font-bold px-1.5 py-0.5 rounded border border-border/80 shadow-md pointer-events-none select-none whitespace-nowrap z-10">
+                <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap z-10">
                   {line.name}
                 </span>
 
                 {/* Start Date Label (Left End) - Hover Popup to the Left */}
                 <span className={cn(
-                  "absolute right-full mr-0.5 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[9px] font-bold px-1 py-px rounded-sm border border-border/60 shadow-sm pointer-events-none select-none whitespace-nowrap transition-opacity z-50",
+                  "absolute right-full mr-0.5 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[9px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/60 shadow-sm pointer-events-none select-none whitespace-nowrap transition-opacity z-50",
                   hoveredLineId === line.id ? "opacity-100" : "opacity-0"
                 )}>
                   {format(line.startDate, "yyyy-MM-dd")}
@@ -2561,7 +2561,7 @@ export function TimelineView() {
 
                 {/* End Date Label (Right End) - Hover Popup to the Right */}
                 <span className={cn(
-                  "absolute left-full ml-0.5 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[9px] font-bold px-1 py-px rounded-sm border border-border/60 shadow-sm pointer-events-none select-none whitespace-nowrap transition-opacity z-50",
+                  "absolute left-full ml-0.5 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[9px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/60 shadow-sm pointer-events-none select-none whitespace-nowrap transition-opacity z-50",
                   hoveredLineId === line.id ? "opacity-100" : "opacity-0"
                 )}>
                   {format(line.endDate, "yyyy-MM-dd")}
@@ -2613,7 +2613,7 @@ export function TimelineView() {
             >
               <div className="w-2 h-2 rounded-full bg-primary -ml-1 border border-background" />
               <div className="w-2 h-2 rounded-full bg-primary -mr-1 border border-background" />
-              <div className="absolute left-1/2 -translate-x-1/2 -top-6 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap z-50">
+              <div className="absolute left-1/2 -translate-x-1/2 -top-6 bg-primary text-primary-foreground text-[10px] leading-none px-[3px] py-[1px] rounded-sm shadow-sm whitespace-nowrap z-50">
                 그리는 중: {format(getDateFromPercent(Math.min(drawingStart.xPercent, drawingCurrent.xPercent)), "yyyy-MM-dd")} ~ {format(getDateFromPercent(Math.max(drawingStart.xPercent, drawingCurrent.xPercent)), "yyyy-MM-dd")}
               </div>
             </div>
