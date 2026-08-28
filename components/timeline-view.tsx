@@ -1924,7 +1924,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-full text-white text-[11.5px] px-[3px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-full text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.startDate, "M/d (eee)", { locale: ko })}
@@ -1958,7 +1958,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[3px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm"
+                                  className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max"
                                   style={{ backgroundColor: scheduleColor }}
                                 >
                                   {format(schedule.endDate, "M/d (eee)", { locale: ko })}
