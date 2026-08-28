@@ -1437,8 +1437,6 @@ export function TimelineView() {
           <span className="text-sm text-muted-foreground">Zoom</span>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
             {SCALE_OPTIONS.map(({ value, label }) => {
-              if (value === 2 && currentSheet?.name !== "월간회의") return null
-
               return (
                 <Button
                   key={value}
