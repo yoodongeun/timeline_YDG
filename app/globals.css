@@ -140,6 +140,8 @@
   border-radius: 9999px;
   border: 8px solid transparent;
   background-clip: padding-box;
+  min-width: 80px;
+  min-height: 80px;
 }
 
 .dark .thick-scrollbar::-webkit-scrollbar-thumb {
