@@ -947,7 +947,7 @@ export function TimelineView() {
     })
   }
 
-  const [scaleMonths, setScaleMonths] = useState<ScaleMonths>(12)
+  const [scaleMonths, setScaleMonths] = useState<ScaleMonths>(2)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -1497,7 +1497,7 @@ export function TimelineView() {
                     setCustomStartDate(null);
                     setCustomEndDate(null);
                     setIsRangeDialogOpen(false);
-                    setScaleMonths(12); // Reset zoom
+                    setScaleMonths(2); // Reset zoom
                   }}>
                     적용 초기화 (기본뷰복귀)
                   </Button>
