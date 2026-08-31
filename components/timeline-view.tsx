@@ -1862,12 +1862,12 @@ export function TimelineView() {
                         />
                       ) : (
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="flex items-center min-w-0 shrinks-1 truncate">
+                          <div className="flex flex-col min-w-0">
                             <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
                               {group.name}
                             </span>
                             {hasMaintenanceTask && (
-                              <span className="ml-1 text-sm font-bold text-slate-500 dark:text-slate-500 shrink-0">
+                              <span className="text-xs font-bold text-slate-500 dark:text-slate-500">
                                 ({new Date().getFullYear() % 100}년 전체정비{hasLegalInspection ? "+법정검사" : ""} {maintenanceDaysInCurrentYear}일)
                               </span>
                             )}
