@@ -1966,7 +1966,7 @@ export function TimelineView() {
                               )}
                               <div
                                 className="absolute bottom-0 w-px border-l border-dashed"
-                                style={{ left: `${pos.endPercent}%`, top: '-8px', borderColor: borderColor }}
+                                style={{ left: `${pos.endPercent}%`, top: '-15px', borderColor: borderColor }}
                               >
                                 <div
                                   className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max"
