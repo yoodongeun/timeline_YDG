@@ -1347,10 +1347,20 @@ export function TimelineView() {
   // Attempt to scroll today into view after data loading is complete
   useEffect(() => {
     if (!isLoading) {
-      const t = setTimeout(scrollToToday, 500) // Give UI time to render after loading
+      const t = setTimeout(() => {
+        if (customStartDate) return
+        const el = scrollContainerRef.current
+        if (!el || todayPositionPercent == null) return
+        const maxScroll = el.scrollWidth - el.clientWidth
+        if (maxScroll <= 0) return
+        const contentWidth = el.scrollWidth
+        const viewportWidth = el.clientWidth
+        const targetScroll = (todayPositionPercent / 100) * contentWidth - viewportWidth * 0.3
+        el.scrollTo({ left: Math.max(0, Math.min(targetScroll, maxScroll)), behavior: "instant" })
+      }, 100) // Give UI time to render after loading
       return () => clearTimeout(t)
     }
-  }, [isLoading, scrollToToday])
+  }, [isLoading, todayPositionPercent, customStartDate])
 
   // Whenever time scale changes, attempt to smoothly scroll today into view again
   useEffect(() => {
@@ -1956,7 +1966,7 @@ export function TimelineView() {
                               )}
                               <div
                                 className="absolute bottom-0 w-px border-l border-dashed"
-                                style={{ left: `${pos.endPercent}%`, top: '-20px', borderColor: borderColor }}
+                                style={{ left: `${pos.endPercent}%`, top: '-8px', borderColor: borderColor }}
                               >
                                 <div
                                   className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max"
