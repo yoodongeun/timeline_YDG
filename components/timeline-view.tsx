@@ -2409,13 +2409,13 @@ export function TimelineView() {
                                   : `${format(schedule.startDate, "M/d (eee)", { locale: ko })} ~ ${format(schedule.endDate, "M/d (eee)", { locale: ko })}`}
                               </div>
                               <div
-                                className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10 group/bar"
+                                className="absolute h-6 rounded-md transition cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10 group/bar"
                                 style={{ left: pos.left, width: pos.width, top: '16px', backgroundColor: barColor }}
                               >
                                 {isEditing && !isDrawingMode && (
                                   <>
                                     <div
-                                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all opacity-0 group-hover/bar:opacity-100"
+                                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-[transform,opacity] opacity-0 group-hover/bar:opacity-100"
                                       style={{ backgroundColor: barColor }}
                                       onMouseDown={(e) => {
                                         e.stopPropagation()
@@ -2424,7 +2424,7 @@ export function TimelineView() {
                                       }}
                                     />
                                     <div
-                                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all opacity-0 group-hover/bar:opacity-100"
+                                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-[transform,opacity] opacity-0 group-hover/bar:opacity-100"
                                       style={{ backgroundColor: barColor }}
                                       onMouseDown={(e) => {
                                         e.stopPropagation()
@@ -2574,7 +2574,7 @@ export function TimelineView() {
                 {/* Left End Handle */}
                 <div
                   className={cn(
-                    "absolute left-0 w-3.5 h-3.5 rounded-full -translate-x-1/2 border border-background shadow-md z-40 transition-all hover:scale-125",
+                    "absolute left-0 w-3.5 h-3.5 rounded-full -translate-x-1/2 border border-background shadow-md z-40 transition-transform hover:scale-125",
                     isEditing && !isDrawingMode ? "cursor-ew-resize bg-primary active:scale-95" : "pointer-events-none"
                   )}
                   style={{ backgroundColor: isEditing && !isDrawingMode ? undefined : lineColor }}
@@ -2589,7 +2589,7 @@ export function TimelineView() {
                 {/* Right End Handle */}
                 <div
                   className={cn(
-                    "absolute right-0 w-3.5 h-3.5 rounded-full translate-x-1/2 border border-background shadow-md z-40 transition-all hover:scale-125",
+                    "absolute right-0 w-3.5 h-3.5 rounded-full translate-x-1/2 border border-background shadow-md z-40 transition-transform hover:scale-125",
                     isEditing && !isDrawingMode ? "cursor-ew-resize bg-primary active:scale-95" : "pointer-events-none"
                   )}
                   style={{ backgroundColor: isEditing && !isDrawingMode ? undefined : lineColor }}
