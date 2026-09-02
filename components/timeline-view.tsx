@@ -251,7 +251,12 @@ export function TimelineView() {
   // Server time offset (serverTime - Date.now())
   const [timeOffset, setTimeOffset] = useState(0)
 
+  // 초기 로드 직후 자동저장이 DB를 덮어쓰는 것을 방지하기 위한 ref
+  // true = 아직 초기 로드 상태, false = 사용자가 변경한 상태 (자동저장 허용)
+  const hasLoadedOnce = useRef(false)
+
   // Fetch server time on mount to calculate offset
+  // 컴퓨터 시간 변경의 영향을 받지 않도록 5분마다 재동기화
   useEffect(() => {
     async function syncTime() {
       try {
@@ -269,6 +274,9 @@ export function TimelineView() {
       }
     }
     syncTime()
+    // 5분마다 재동기화하여 컴퓨터 시간 변경에 영향받지 않도록 함
+    const intervalId = setInterval(syncTime, 5 * 60 * 1000)
+    return () => clearInterval(intervalId)
   }, [])
 
   // Helper to get the corrected "now" date based on offset
@@ -276,7 +284,18 @@ export function TimelineView() {
 
   // Auto-save whenever sheets or currentSheetId changes
   useEffect(() => {
-    if (isLoading || sheets.length === 0) return
+    // isLoading 중에는 저장하지 않음, 그리고 ref를 리셋
+    if (isLoading) {
+      hasLoadedOnce.current = false
+      return
+    }
+    // 초기 로드 직후 첫 번째 실행에서는 저장을 건너뜀
+    // (DB에서 방금 불러온 데이터를 그대로 다시 덮어쓰는 것 방지)
+    if (!hasLoadedOnce.current) {
+      hasLoadedOnce.current = true
+      return
+    }
+    if (sheets.length === 0) return
 
     const saveData = async () => {
       setSaveStatus('saving')
@@ -366,7 +385,14 @@ export function TimelineView() {
             }])
           }
 
-          setCurrentSheetId(rawData.currentId || "default")
+          // 항상 "발전소 정비일정" 탭을 기본으로 표시
+          // (마지막으로 열었던 탭 대신 고정 탭으로 시작)
+          if (rawData.sheets && Array.isArray(rawData.sheets) && rawData.sheets.length > 0) {
+            const mainSheet = rawData.sheets.find((s: any) => s.name === "발전소 정비일정")
+            setCurrentSheetId(mainSheet ? mainSheet.id : rawData.sheets[0].id)
+          } else {
+            setCurrentSheetId("default")
+          }
 
           // 데이터베이스에 저장된 비밀번호가 있으면 불러옴
           if (rawData.appPassword) {
@@ -1956,6 +1982,7 @@ export function TimelineView() {
                                     className="text-[13.5px] font-bold whitespace-nowrap pointer-events-auto sticky"
                                     style={{
                                       left: `${sidebarW + 20}px`,
+                                      right: '0px',
                                       color: scheduleColor,
                                       height: 'max-content'
                                     }}
