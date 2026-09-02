@@ -979,7 +979,8 @@ export function TimelineView() {
     return window.matchMedia("(max-width: 768px)").matches
   })
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [scrollLeft, setScrollLeft] = useState(0)
+  const lineLabelRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
+  const linePositionsRef = useRef<Map<string, { leftPercent: number; endPercent: number }>>(new Map())
 
   // Configuration for the full scrollable range
   const timelineConfig = useMemo(() => {
@@ -1431,6 +1432,43 @@ export function TimelineView() {
 
   const sidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
 
+  // Direct DOM scroll listener for horizontal line labels - no re-render, silky smooth
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+
+    const updateLineLabels = () => {
+      const { scrollLeft, clientWidth, scrollWidth } = el
+      const curSidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
+
+      lineLabelRefs.current.forEach((span, lineId) => {
+        const pos = linePositionsRef.current.get(lineId)
+        if (!pos || !span) return
+
+        const lineLeftPx = (pos.leftPercent / 100) * scrollWidth
+        const lineRightPx = (pos.endPercent / 100) * scrollWidth
+        const lineWidthPx = lineRightPx - lineLeftPx
+
+        const viewportStart = scrollLeft + curSidebarW
+        const viewportEnd = scrollLeft + clientWidth
+
+        const visibleStart = Math.max(lineLeftPx, viewportStart)
+        const visibleEnd = Math.min(lineRightPx, viewportEnd)
+
+        const labelOffset = lineWidthPx > 0
+          ? Math.max(0, Math.min(lineWidthPx, (visibleStart + visibleEnd) / 2 - lineLeftPx))
+          : lineWidthPx / 2
+
+        span.style.left = `${labelOffset}px`
+      })
+    }
+
+    el.addEventListener('scroll', updateLineLabels, { passive: true })
+    // Run once on mount to set correct initial positions
+    updateLineLabels()
+    return () => el.removeEventListener('scroll', updateLineLabels)
+  }, [isCollapsed])
+
   if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-lg">데이터베이스와 동기화 중입니다...</div>
 
   return (
@@ -1738,7 +1776,6 @@ export function TimelineView() {
         className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", "thick-scrollbar")}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
       >
         <div
           className={cn("relative min-h-full timeline-inner-container", isDrawingMode && "cursor-crosshair select-none")}
@@ -2432,34 +2469,24 @@ export function TimelineView() {
                   }}
                 />
 
-                {/* Name Label - centered in the visible portion of the line, follows scroll */}
-                {line.name && (() => {
-                  const el = scrollContainerRef.current
-                  const totalWidth = el ? el.scrollWidth : 0
-                  const clientWidth = el ? el.clientWidth : 0
-                  // Line bounds in pixels (within scroll container)
-                  const lineLeftPx = (pos.leftPercent / 100) * totalWidth
-                  const lineRightPx = (pos.endPercent / 100) * totalWidth
-                  const lineWidthPx = lineRightPx - lineLeftPx
-                  // Visible viewport range (excluding sidebar)
-                  const viewportStart = scrollLeft + sidebarW
-                  const viewportEnd = scrollLeft + clientWidth
-                  // Visible segment of the line
-                  const visibleStart = Math.max(lineLeftPx, viewportStart)
-                  const visibleEnd = Math.min(lineRightPx, viewportEnd)
-                  // Center of visible segment, relative to line's left edge
-                  const labelOffset = lineWidthPx > 0
-                    ? Math.max(0, Math.min(lineWidthPx, (visibleStart + visibleEnd) / 2 - lineLeftPx))
-                    : lineWidthPx / 2
-                  return (
-                    <span
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap z-10"
-                      style={{ left: `${labelOffset}px` }}
-                    >
-                      {line.name}
-                    </span>
-                  )
-                })()}
+                {/* Name Label - callback ref registers element for direct DOM scroll updates (smooth, no re-render) */}
+                {line.name && (
+                  <span
+                    ref={(el) => {
+                      if (el) {
+                        lineLabelRefs.current.set(line.id, el)
+                        linePositionsRef.current.set(line.id, { leftPercent: pos.leftPercent, endPercent: pos.endPercent })
+                      } else {
+                        lineLabelRefs.current.delete(line.id)
+                        linePositionsRef.current.delete(line.id)
+                      }
+                    }}
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap z-10"
+                    style={{ left: '50%' }}
+                  >
+                    {line.name}
+                  </span>
+                )}
 
 
                 {/* Start Date Label (Left End) - Hover Popup to the Left */}
