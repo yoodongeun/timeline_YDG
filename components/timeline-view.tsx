@@ -540,6 +540,17 @@ export function TimelineView() {
   const [hoveredLineId, setHoveredLineId] = useState<string | null>(null)
 
   const [isEditing, setIsEditing] = useState(false)
+  const [backupSheets, setBackupSheets] = useState<Sheet[] | null>(null)
+
+  const handleCancelEdit = () => {
+    if (confirm("수정사항을 저장하지 않고 나가시겠습니까?")) {
+      if (backupSheets) {
+        setSheets(backupSheets)
+      }
+      setIsEditing(false)
+      setBackupSheets(null)
+    }
+  }
 
   const handleEditToggle = async () => {
     console.log("🚀 [DEBUG] 1. handleEditToggle 진입. isEditing:", isEditing)
@@ -579,6 +590,7 @@ export function TimelineView() {
           setSaveStatus('saved')
           setTimeout(() => setSaveStatus('idle'), 2000)
           setIsEditing(false)
+          setBackupSheets(null)
           alert("✅ [Ver 5.0] 비밀번호 포함 모든 데이터가 동기화되었습니다!")
         }
       } catch (err: any) {
@@ -593,6 +605,7 @@ export function TimelineView() {
       const input = prompt("비밀번호 4자리를 입력하세요:")
       if (input === appPassword) {
         console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
+        setBackupSheets(deserializeSheets(serializeSheets(sheets)))
         setIsEditing(true)
       } else if (input !== null) {
         console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
@@ -1620,6 +1633,17 @@ export function TimelineView() {
                 {isDrawingMode ? "그리기 중단" : "수평선 그리기"}
               </Button>
             )}
+            {isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelEdit}
+                className="h-7 shrink-0 px-2 text-xs font-medium border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <X className="h-3 w-3 mr-1" />
+                수정 취소
+              </Button>
+            )}
             <Button
               variant={isEditing ? "default" : "outline"}
               size="sm"
@@ -2007,22 +2031,19 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-full text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max"
+                                  className={cn(
+                                    "absolute top-0 -translate-x-full text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max",
+                                    isEditing && !isDrawingMode && "cursor-ew-resize active:scale-95 transition-transform"
+                                  )}
                                   style={{ backgroundColor: scheduleColor }}
+                                  onMouseDown={isEditing && !isDrawingMode ? (e) => {
+                                    e.stopPropagation()
+                                    e.preventDefault()
+                                    setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'start' })
+                                  } : undefined}
                                 >
                                   {format(schedule.startDate, "M/d (eee)", { locale: ko })}
                                 </div>
-                                {isEditing && !isDrawingMode && (
-                                  <div
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all"
-                                    style={{ backgroundColor: scheduleColor }}
-                                    onMouseDown={(e) => {
-                                      e.stopPropagation()
-                                      e.preventDefault()
-                                      setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'start' })
-                                    }}
-                                  />
-                                )}
                               </div>
                               {/* Memo wrapper for sticky pushing */}
                               {schedule.memo && (
@@ -2053,22 +2074,19 @@ export function TimelineView() {
                                 style={{ left: `${pos.endPercent}%`, top: '-15px', borderColor: borderColor }}
                               >
                                 <div
-                                  className="absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max"
+                                  className={cn(
+                                    "absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max",
+                                    isEditing && !isDrawingMode && "cursor-ew-resize active:scale-95 transition-transform"
+                                  )}
                                   style={{ backgroundColor: scheduleColor }}
+                                  onMouseDown={isEditing && !isDrawingMode ? (e) => {
+                                    e.stopPropagation()
+                                    e.preventDefault()
+                                    setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'end' })
+                                  } : undefined}
                                 >
                                   {format(schedule.endDate, "M/d (eee)", { locale: ko })}
                                 </div>
-                                {isEditing && !isDrawingMode && (
-                                  <div
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all"
-                                    style={{ backgroundColor: scheduleColor }}
-                                    onMouseDown={(e) => {
-                                      e.stopPropagation()
-                                      e.preventDefault()
-                                      setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'end' })
-                                    }}
-                                  />
-                                )}
                               </div>
                             </div>
                           )
