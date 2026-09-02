@@ -533,6 +533,7 @@ export function TimelineView() {
 
   const [resizingLineId, setResizingLineId] = useState<string | null>(null)
   const [resizingEdge, setResizingEdge] = useState<'start' | 'end' | null>(null)
+  const [resizingSchedule, setResizingSchedule] = useState<{ groupId: string, taskId: string, scheduleId: string, edge: 'start' | 'end' } | null>(null)
 
   const [selectedLine, setSelectedLine] = useState<HorizontalLine | null>(null)
   const [isLineEditOpen, setIsLineEditOpen] = useState(false)
@@ -1192,7 +1193,7 @@ export function TimelineView() {
 
   // Handle mouse move/up globally for drawing, dragging, and resizing
   useEffect(() => {
-    if (!draggedLineId && !drawingStart && !resizingLineId) return
+    if (!draggedLineId && !drawingStart && !resizingLineId && !resizingSchedule) return
 
     const handleWindowMouseMove = (e: MouseEvent) => {
       const container = scrollContainerRef.current
@@ -1239,6 +1240,48 @@ export function TimelineView() {
                   }
                 }
                 return l
+              })
+            }
+          }
+          return s
+        }))
+      } else if (resizingSchedule) {
+        const xInContainer = e.clientX - rect.left
+        const xPercent = Math.min(100, Math.max(0, (xInContainer / rect.width) * 100))
+        const newDate = getDateFromPercent(xPercent)
+        
+        setSheets(prev => prev.map(s => {
+          if (s.id === currentSheetId) {
+            return {
+              ...s,
+              groups: s.groups.map(g => {
+                if (g.id === resizingSchedule.groupId) {
+                  return {
+                    ...g,
+                    tasks: g.tasks.map(function updateTask(t: Task): Task {
+                      if (t.id === resizingSchedule.taskId) {
+                        return {
+                          ...t,
+                          schedules: t.schedules.map(sch => {
+                            if (sch.id === resizingSchedule.scheduleId) {
+                              if (resizingSchedule.edge === 'start') {
+                                return { ...sch, startDate: newDate < sch.endDate ? newDate : sch.endDate }
+                              } else {
+                                return { ...sch, endDate: newDate > sch.startDate ? newDate : sch.startDate }
+                              }
+                            }
+                            return sch
+                          })
+                        }
+                      }
+                      if (t.children) {
+                        return { ...t, children: t.children.map(updateTask) }
+                      }
+                      return t
+                    })
+                  }
+                }
+                return g
               })
             }
           }
@@ -1303,6 +1346,9 @@ export function TimelineView() {
           setResizingLineId(null)
           setResizingEdge(null)
         }
+        if (resizingSchedule) {
+          setResizingSchedule(null)
+        }
       }
     }
 
@@ -1312,7 +1358,7 @@ export function TimelineView() {
       window.removeEventListener('mousemove', handleWindowMouseMove)
       window.removeEventListener('mouseup', handleWindowMouseUp)
     }
-  }, [draggedLineId, drawingStart, drawingCurrent, isDrawingMode, draggedLineStartY, draggedLineStartTop, currentSheetId, isCollapsed, getDateFromPercent, resizingLineId, resizingEdge])
+  }, [draggedLineId, drawingStart, drawingCurrent, isDrawingMode, draggedLineStartY, draggedLineStartTop, currentSheetId, isCollapsed, getDateFromPercent, resizingLineId, resizingEdge, resizingSchedule])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const innerContainer = e.currentTarget.querySelector('.timeline-inner-container')
@@ -1957,7 +2003,7 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, width: `${pos.endPercent - pos.leftPercent}%`, top: '0px', backgroundColor: bgColor }}
                               />
                               <div
-                                className="absolute bottom-0 w-px border-l border-dashed"
+                                className="absolute bottom-0 w-px border-l border-dashed pointer-events-auto"
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
@@ -1966,6 +2012,17 @@ export function TimelineView() {
                                 >
                                   {format(schedule.startDate, "M/d (eee)", { locale: ko })}
                                 </div>
+                                {isEditing && !isDrawingMode && (
+                                  <div
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all"
+                                    style={{ backgroundColor: scheduleColor }}
+                                    onMouseDown={(e) => {
+                                      e.stopPropagation()
+                                      e.preventDefault()
+                                      setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'start' })
+                                    }}
+                                  />
+                                )}
                               </div>
                               {/* Memo wrapper for sticky pushing */}
                               {schedule.memo && (
@@ -1992,7 +2049,7 @@ export function TimelineView() {
                                 </div>
                               )}
                               <div
-                                className="absolute bottom-0 w-px border-l border-dashed"
+                                className="absolute bottom-0 w-px border-l border-dashed pointer-events-auto"
                                 style={{ left: `${pos.endPercent}%`, top: '-15px', borderColor: borderColor }}
                               >
                                 <div
@@ -2001,6 +2058,17 @@ export function TimelineView() {
                                 >
                                   {format(schedule.endDate, "M/d (eee)", { locale: ko })}
                                 </div>
+                                {isEditing && !isDrawingMode && (
+                                  <div
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all"
+                                    style={{ backgroundColor: scheduleColor }}
+                                    onMouseDown={(e) => {
+                                      e.stopPropagation()
+                                      e.preventDefault()
+                                      setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'end' })
+                                    }}
+                                  />
+                                )}
                               </div>
                             </div>
                           )
@@ -2323,9 +2391,32 @@ export function TimelineView() {
                                   : `${format(schedule.startDate, "M/d (eee)", { locale: ko })} ~ ${format(schedule.endDate, "M/d (eee)", { locale: ko })}`}
                               </div>
                               <div
-                                className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10"
+                                className="absolute h-6 rounded-md transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10 group/bar"
                                 style={{ left: pos.left, width: pos.width, top: '16px', backgroundColor: barColor }}
-                              />
+                              >
+                                {isEditing && !isDrawingMode && (
+                                  <>
+                                    <div
+                                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all opacity-0 group-hover/bar:opacity-100"
+                                      style={{ backgroundColor: barColor }}
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'start' })
+                                      }}
+                                    />
+                                    <div
+                                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full border border-background shadow-md z-40 cursor-ew-resize active:scale-95 hover:scale-125 transition-all opacity-0 group-hover/bar:opacity-100"
+                                      style={{ backgroundColor: barColor }}
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'end' })
+                                      }}
+                                    />
+                                  </>
+                                )}
+                              </div>
                             </div>
                           )
                         })}
