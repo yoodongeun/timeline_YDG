@@ -979,8 +979,6 @@ export function TimelineView() {
     return window.matchMedia("(max-width: 768px)").matches
   })
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const lineLabelRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
-  const linePositionsRef = useRef<Map<string, { leftPercent: number; endPercent: number }>>(new Map())
 
   // Configuration for the full scrollable range
   const timelineConfig = useMemo(() => {
@@ -1431,43 +1429,6 @@ export function TimelineView() {
   }, [customStartDate, customEndDate, timelineConfig])
 
   const sidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
-
-  // Direct DOM scroll listener for horizontal line labels - no re-render, silky smooth
-  useEffect(() => {
-    const el = scrollContainerRef.current
-    if (!el) return
-
-    const updateLineLabels = () => {
-      const { scrollLeft, clientWidth, scrollWidth } = el
-      const curSidebarW = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH
-
-      lineLabelRefs.current.forEach((span, lineId) => {
-        const pos = linePositionsRef.current.get(lineId)
-        if (!pos || !span) return
-
-        const lineLeftPx = (pos.leftPercent / 100) * scrollWidth
-        const lineRightPx = (pos.endPercent / 100) * scrollWidth
-        const lineWidthPx = lineRightPx - lineLeftPx
-
-        const viewportStart = scrollLeft + curSidebarW
-        const viewportEnd = scrollLeft + clientWidth
-
-        const visibleStart = Math.max(lineLeftPx, viewportStart)
-        const visibleEnd = Math.min(lineRightPx, viewportEnd)
-
-        const labelOffset = lineWidthPx > 0
-          ? Math.max(0, Math.min(lineWidthPx, (visibleStart + visibleEnd) / 2 - lineLeftPx))
-          : lineWidthPx / 2
-
-        span.style.left = `${labelOffset}px`
-      })
-    }
-
-    el.addEventListener('scroll', updateLineLabels, { passive: true })
-    // Run once on mount to set correct initial positions
-    updateLineLabels()
-    return () => el.removeEventListener('scroll', updateLineLabels)
-  }, [isCollapsed])
 
   if (isLoading) return <div className="flex h-screen items-center justify-center font-bold text-lg">데이터베이스와 동기화 중입니다...</div>
 
@@ -2469,25 +2430,22 @@ export function TimelineView() {
                   }}
                 />
 
-                {/* Name Label - callback ref registers element for direct DOM scroll updates (smooth, no re-render) */}
+                {/* Name Label - pure CSS sticky, completely smooth, no JS overhead */}
                 {line.name && (
-                  <span
-                    ref={(el) => {
-                      if (el) {
-                        lineLabelRefs.current.set(line.id, el)
-                        linePositionsRef.current.set(line.id, { leftPercent: pos.leftPercent, endPercent: pos.endPercent })
-                      } else {
-                        lineLabelRefs.current.delete(line.id)
-                        linePositionsRef.current.delete(line.id)
-                      }
-                    }}
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap z-10"
-                    style={{ left: '50%' }}
-                  >
-                    {line.name}
-                  </span>
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div
+                      className="sticky flex items-center justify-center pointer-events-none z-10"
+                      style={{
+                        left: `${sidebarW + 20}px`,
+                        right: '0px',
+                      }}
+                    >
+                      <span className="bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap">
+                        {line.name}
+                      </span>
+                    </div>
+                  </div>
                 )}
-
 
                 {/* Start Date Label (Left End) - Hover Popup to the Left */}
                 <span className={cn(
