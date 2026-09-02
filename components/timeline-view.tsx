@@ -2430,10 +2430,17 @@ export function TimelineView() {
                   }}
                 />
 
-                {/* Constant Center Name Label */}
-                <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap z-10">
-                  {line.name}
-                </span>
+                {/* Name Label - sticky so it follows horizontal scroll like dashed schedule memos */}
+                {line.name && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center" style={{ overflow: 'visible' }}>
+                    <span
+                      className="bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap z-10 sticky"
+                      style={{ left: `${sidebarW + 20}px` }}
+                    >
+                      {line.name}
+                    </span>
+                  </div>
+                )}
 
                 {/* Start Date Label (Left End) - Hover Popup to the Left */}
                 <span className={cn(
