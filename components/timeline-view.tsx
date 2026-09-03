@@ -920,6 +920,9 @@ export function TimelineView() {
   // Drag and Drop state
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
+  
+  const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null)
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null)
 
   const [draggedScheduleId, setDraggedScheduleId] = useState<string | null>(null)
   const [dragOverScheduleId, setDragOverScheduleId] = useState<string | null>(null)
@@ -1322,6 +1325,25 @@ export function TimelineView() {
             return l
           })
         }
+      }
+      return s
+    }))
+  }
+
+  const moveGroup = (sourceGroupId: string, targetGroupId: string) => {
+    if (sourceGroupId === targetGroupId) return
+
+    setSheets(prev => prev.map(s => {
+      if (s.id === currentSheetId) {
+        const groups = [...s.groups]
+        const sourceIndex = groups.findIndex(g => g.id === sourceGroupId)
+        const targetIndex = groups.findIndex(g => g.id === targetGroupId)
+        if (sourceIndex === -1 || targetIndex === -1) return s
+
+        const [sourceGroup] = groups.splice(sourceIndex, 1)
+        groups.splice(targetIndex, 0, sourceGroup)
+        
+        return { ...s, groups }
       }
       return s
     }))
@@ -2398,7 +2420,50 @@ export function TimelineView() {
               }
 
               return (
-                <div key={group.id} className="relative group/section first:border-t-0 border-t-4 border-slate-400 dark:border-slate-600">
+                <div key={group.id} 
+                  className={cn(
+                    "relative group/section first:border-t-0 border-t-4 border-slate-400 dark:border-slate-600",
+                    isEditing && "cursor-grab active:cursor-grabbing"
+                  )}
+                  draggable={isEditing}
+                  onDragStart={(e) => {
+                    if (!isEditing) return
+                    e.stopPropagation()
+                    setDraggedGroupId(group.id)
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (!isEditing) return
+                    if (draggedGroupId && draggedGroupId !== group.id) {
+                      setDragOverGroupId(group.id)
+                    }
+                  }}
+                  onDragLeave={(e) => {
+                    e.stopPropagation()
+                    if (dragOverGroupId === group.id) {
+                      setDragOverGroupId(null)
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (!isEditing) return
+                    if (draggedGroupId && draggedGroupId !== group.id) {
+                      moveGroup(draggedGroupId, group.id)
+                    }
+                    setDraggedGroupId(null)
+                    setDragOverGroupId(null)
+                  }}
+                  onDragEnd={() => {
+                    setDraggedGroupId(null)
+                    setDragOverGroupId(null)
+                  }}
+                >
+                  {dragOverGroupId === group.id && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-primary z-50 pointer-events-none" />
+                  )}
                   {/* Group Header */}
                   <div className="flex border-b border-border min-w-full group-hover/section:bg-accent/5 transition-colors">
                     <div
@@ -2425,33 +2490,30 @@ export function TimelineView() {
                               </span>
                             )}
                           </div>
-                          {isEditing && (
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover/section:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingGroupId(group.id)}>
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:bg-emerald-50" onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                setCopyTarget({ type: 'group', sourceSheetId: currentSheetId, sourceGroupId: group.id })
-                              }} title="그룹 복사 & 보내기">
-                                <CopyPlus className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteGroup(group.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
                         </div>
                       )}
                       {isEditing && (
-                        <div className="flex items-center gap-1 ml-auto">
+                        <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingGroupId(group.id)} title="이름 수정">
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:bg-emerald-50" onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setCopyTarget({ type: 'group', sourceSheetId: currentSheetId, sourceGroupId: group.id })
+                          }} title="그룹 복사 & 보내기">
+                            <CopyPlus className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteGroup(group.id)} title="그룹 삭제">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <div className="w-px h-4 bg-border mx-1" />
                           {clipboardTask && (
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => pasteTaskIntoGroup(group.id)} title="Paste task into group">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => pasteTaskIntoGroup(group.id)} title="여기에 태스크 붙여넣기">
                               <Clipboard className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addTask(group.id)}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => addTask(group.id)} title="새 태스크 추가">
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
