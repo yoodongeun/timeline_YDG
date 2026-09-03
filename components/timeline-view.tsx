@@ -2501,15 +2501,15 @@ export function TimelineView() {
                               <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate mt-0.5" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
                                 {group.name}
                               </span>
-                              {eohDataList.find(e => e.group_name === group.name) && (() => {
+                              {currentSheet?.name === "발전소 정비일정" && group.name === "LNG 1호기" && eohDataList.find(e => e.group_name === group.name) && (() => {
                                 const d = eohDataList.find(e => e.group_name === group.name)!;
                                 return (
-                                  <div className="relative group/eoh flex items-center mt-0.5 ml-1">
-                                    <button className="text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap shadow-sm transition-colors cursor-default">
-                                      운전시간 및 NS확인
-                                    </button>
-                                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 opacity-0 group-hover/eoh:opacity-100 pointer-events-none transition-opacity bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg p-2.5 z-[100] whitespace-nowrap">
-                                      <div className="flex flex-col gap-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 tracking-tight">
+                                  <div className="relative group flex items-center ml-2 z-[9999]">
+                                    <div className="text-[11px] bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:bg-slate-700 dark:border-slate-600 px-2 py-0.5 rounded text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap shadow-sm cursor-help transition-colors">
+                                      운전시간 및 기동횟수
+                                    </div>
+                                    <div className="absolute left-[100%] top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-xl p-3 z-[9999] whitespace-nowrap">
+                                      <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 tracking-tight">
                                         <div className="flex items-center gap-3">
                                           {d.gt11_eoh != null && <span>GT11 {d.gt11_eoh}k, NS {d.gt11_ns}</span>}
                                           {d.gt12_eoh != null && <span>GT12 {d.gt12_eoh}k, NS {d.gt12_ns}</span>}
