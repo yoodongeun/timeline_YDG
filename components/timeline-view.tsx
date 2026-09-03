@@ -2520,12 +2520,12 @@ export function TimelineView() {
                                       <TooltipContent side="right" align="center" sideOffset={12} className="w-auto p-4 z-[99999] shadow-xl bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                                         <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
                                           <div className="flex items-center gap-4">
-                                            {d.gt11_eoh != null && <span>GT11 {d.gt11_eoh}k, NS {d.gt11_ns}</span>}
-                                            {d.gt12_eoh != null && <span>GT12 {d.gt12_eoh}k, NS {d.gt12_ns}</span>}
+                                            {d.gt11_eoh != null && <span>GT11 {Number(d.gt11_eoh).toFixed(1)}k, NS {d.gt11_ns}</span>}
+                                            {d.gt12_eoh != null && <span>GT12 {Number(d.gt12_eoh).toFixed(1)}k, NS {d.gt12_ns}</span>}
                                           </div>
                                           {d.st10_eoh != null && (
                                             <div className="flex items-center gap-4">
-                                              <span>ST10 {d.st10_eoh}k, NS {d.st10_ns}</span>
+                                              <span>ST10 {Number(d.st10_eoh).toFixed(1)}k, NS {d.st10_ns}</span>
                                             </div>
                                           )}
                                           {(d.updated_at || d.created_at) && (
