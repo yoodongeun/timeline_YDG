@@ -11,6 +11,50 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { createClient } from '@supabase/supabase-js'
+import { createPortal } from 'react-dom'
+
+function FixedHoverPopup({ data }: { data: any }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCoords({ top: rect.top, left: rect.right + 10 });
+    setIsOpen(true);
+  };
+
+  return (
+    <div className="ml-12 mt-[1px]" onMouseEnter={handleMouseEnter} onMouseLeave={() => setIsOpen(false)}>
+      <div className="text-[13px] bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:bg-slate-700 dark:border-slate-600 px-3 py-1 rounded-md text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap shadow-sm transition-colors cursor-pointer">
+        운전시간 및 기동횟수
+      </div>
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-xl p-4 z-[99999] whitespace-nowrap"
+          style={{ top: coords.top - 20, left: coords.left }}
+        >
+          <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+            <div className="flex items-center gap-4">
+              {data.gt11_eoh != null && <span>GT11 {data.gt11_eoh}k, NS {data.gt11_ns}</span>}
+              {data.gt12_eoh != null && <span>GT12 {data.gt12_eoh}k, NS {data.gt12_ns}</span>}
+            </div>
+            {data.st10_eoh != null && (
+              <div className="flex items-center gap-4">
+                <span>ST10 {data.st10_eoh}k, NS {data.st10_ns}</span>
+              </div>
+            )}
+            {(data.updated_at || data.created_at) && (
+              <div className="text-[12px] font-normal text-slate-500 mt-1 pt-2 border-t border-slate-200 dark:border-slate-700">
+                마지막 업데이트: {new Date(data.updated_at || data.created_at).toLocaleString('ko-KR')}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 // 아까 만든 supabase.ts 파일을 불러옵니다.
 import { supabase } from "@/lib/supabase"
@@ -371,6 +415,8 @@ export function TimelineView() {
     gt12_ns?: number;
     st10_eoh?: number;
     st10_ns?: number;
+    created_at?: string;
+    updated_at?: string;
   }[]>([])
 
   // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
@@ -2502,29 +2548,9 @@ export function TimelineView() {
                               <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate mt-0.5" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
                                 {group.name}
                               </span>
-                              {currentSheet?.name === "발전소 정비일정" && group.name === "LNG 1호기" && eohDataList.find(e => e.group_name === group.name) && (() => {
-                                const d = eohDataList.find(e => e.group_name === group.name)!;
-                                return (
-                                  <div className="relative group flex items-center ml-12 z-[99999]">
-                                    <div className="text-[13px] bg-white hover:bg-slate-50 border border-slate-300 dark:bg-slate-700 dark:border-slate-600 px-3 py-1 rounded-md text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap shadow-sm transition-colors cursor-pointer">
-                                      운전시간 및 기동횟수
-                                    </div>
-                                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 hidden group-hover:flex bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-xl p-4 z-[99999] whitespace-nowrap">
-                                      <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
-                                        <div className="flex items-center gap-4">
-                                          {d.gt11_eoh != null && <span>GT11 {d.gt11_eoh}k, NS {d.gt11_ns}</span>}
-                                          {d.gt12_eoh != null && <span>GT12 {d.gt12_eoh}k, NS {d.gt12_ns}</span>}
-                                        </div>
-                                        {d.st10_eoh != null && (
-                                          <div className="flex items-center gap-4">
-                                            <span>ST10 {d.st10_eoh}k, NS {d.st10_ns}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
+                              {currentSheet?.name === "발전소 정비일정" && group.name === "LNG 1호기" && eohDataList.find(e => e.group_name === group.name) && (
+                                <FixedHoverPopup data={eohDataList.find(e => e.group_name === group.name)} />
+                              )}
                             </div>
                             {hasMaintenanceTask && (
                               <span className="text-xs font-bold text-slate-500 dark:text-slate-500">
