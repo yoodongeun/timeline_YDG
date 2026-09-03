@@ -2505,16 +2505,12 @@ export function TimelineView() {
                               {currentSheet?.name === "발전소 정비일정" && group.name === "LNG 1호기" && eohDataList.find(e => e.group_name === group.name) && (() => {
                                 const d = eohDataList.find(e => e.group_name === group.name)!;
                                 return (
-                                  <HoverCard openDelay={100} closeDelay={100}>
-                                    <HoverCardTrigger asChild>
-                                      <div className="ml-8 mt-[1px] flex items-center cursor-help">
-                                        <div className="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:bg-slate-700 dark:border-slate-600 px-3 py-1 rounded-md text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap shadow-sm transition-colors">
-                                          운전시간 및 기동횟수
-                                        </div>
-                                      </div>
-                                    </HoverCardTrigger>
-                                    <HoverCardContent side="right" align="center" sideOffset={12} className="w-auto p-4 z-[99999] shadow-xl">
-                                      <div className="flex flex-col gap-2 text-[13px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+                                  <div className="relative group flex items-center ml-12 z-[99999]">
+                                    <div className="text-[13px] bg-white hover:bg-slate-50 border border-slate-300 dark:bg-slate-700 dark:border-slate-600 px-3 py-1 rounded-md text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap shadow-sm transition-colors cursor-pointer">
+                                      운전시간 및 기동횟수
+                                    </div>
+                                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 hidden group-hover:flex bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-xl p-4 z-[99999] whitespace-nowrap">
+                                      <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
                                         <div className="flex items-center gap-4">
                                           {d.gt11_eoh != null && <span>GT11 {d.gt11_eoh}k, NS {d.gt11_ns}</span>}
                                           {d.gt12_eoh != null && <span>GT12 {d.gt12_eoh}k, NS {d.gt12_ns}</span>}
@@ -2525,8 +2521,8 @@ export function TimelineView() {
                                           </div>
                                         )}
                                       </div>
-                                    </HoverCardContent>
-                                  </HoverCard>
+                                    </div>
+                                  </div>
                                 );
                               })()}
                             </div>
