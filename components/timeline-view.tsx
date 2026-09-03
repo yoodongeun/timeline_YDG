@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { addMonths, addDays, startOfMonth, startOfDay, endOfDay, endOfMonth, differenceInDays, format, getDate, startOfYear, addYears, endOfYear } from "date-fns"
 import { ko } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard, Settings } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Plus, Trash2, Calendar as CalendarIcon, X, Save, RotateCcw, Check, Pencil, Copy, Clipboard, Settings, CopyPlus, Link } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
@@ -61,12 +61,18 @@ const SCALE_OPTIONS = [
 ] as const
 type ScaleMonths = (typeof SCALE_OPTIONS)[number]["value"]
 
+interface SyncInfo {
+  syncId: string
+  originPath: string
+}
+
 interface Schedule {
   id: string
   startDate: Date
   endDate: Date
   memo?: string
   color?: string
+  syncInfo?: SyncInfo
 }
 
 interface Task {
@@ -94,6 +100,7 @@ interface HorizontalLine {
   color?: string
   style?: 'solid' | 'dashed' | 'dotted'
   top: number
+  syncInfo?: SyncInfo
 }
 
 interface Sheet {
@@ -542,6 +549,286 @@ export function TimelineView() {
   const [isEditing, setIsEditing] = useState(false)
   const [backupSheets, setBackupSheets] = useState<Sheet[] | null>(null)
 
+  type CopyTarget = {
+    type: 'task'
+    sourceSheetId: string
+    sourceGroupId: string
+    sourceTaskId: string
+    item: Schedule
+  } | {
+    type: 'line'
+    sourceSheetId: string
+    item: HorizontalLine
+  } | {
+    type: 'group'
+    sourceSheetId: string
+    sourceGroupId: string
+  }
+  const [copyTarget, setCopyTarget] = useState<CopyTarget | null>(null)
+  
+  const [copyTargetSheetId, setCopyTargetSheetId] = useState<string>("")
+  const [copyTargetGroupId, setCopyTargetGroupId] = useState<string>("")
+  const [copyTargetTaskId, setCopyTargetTaskId] = useState<string>("")
+
+  useEffect(() => {
+    if (copyTarget) {
+      const initialSheet = sheets.find(s => s.id !== copyTarget.sourceSheetId) || sheets[0]
+      if (initialSheet) {
+        setCopyTargetSheetId(initialSheet.id)
+        if (initialSheet.groups.length > 0) {
+          setCopyTargetGroupId(initialSheet.groups[0].id)
+          if (initialSheet.groups[0].tasks.length > 0) {
+            setCopyTargetTaskId(initialSheet.groups[0].tasks[0].id)
+          }
+        }
+      }
+    }
+  }, [copyTarget, sheets])
+
+  useEffect(() => {
+    if (copyTargetSheetId) {
+      const sheet = sheets.find(s => s.id === copyTargetSheetId)
+      if (sheet && sheet.groups.length > 0) {
+        if (!sheet.groups.find(g => g.id === copyTargetGroupId)) {
+           setCopyTargetGroupId(sheet.groups[0].id)
+           if (sheet.groups[0].tasks.length > 0) {
+             setCopyTargetTaskId(sheet.groups[0].tasks[0].id)
+           }
+        }
+      }
+    }
+  }, [copyTargetSheetId, sheets])
+
+  useEffect(() => {
+    if (copyTargetSheetId && copyTargetGroupId) {
+      const sheet = sheets.find(s => s.id === copyTargetSheetId)
+      const group = sheet?.groups.find(g => g.id === copyTargetGroupId)
+      if (group && group.tasks.length > 0) {
+        const findFirstTask = (tasks: Task[]): string | undefined => {
+          if (tasks.length > 0) return tasks[0].id
+          return undefined
+        }
+        
+        let found = false
+        const checkTask = (tasks: Task[]) => {
+          for (const t of tasks) {
+            if (t.id === copyTargetTaskId) found = true
+            if (t.children) checkTask(t.children)
+          }
+        }
+        checkTask(group.tasks)
+        if (!found) {
+          const first = findFirstTask(group.tasks)
+          if (first) setCopyTargetTaskId(first)
+        }
+      }
+    }
+  }, [copyTargetGroupId, copyTargetSheetId, sheets])
+
+  const executeCopyAndSend = () => {
+    if (!copyTarget) return
+    
+    if (copyTarget.type === 'group') {
+      if (!copyTargetSheetId) return
+      const sourceSheet = sheets.find(s => s.id === copyTarget.sourceSheetId)
+      if (!sourceSheet) return
+      const sourceGroup = sourceSheet.groups.find(g => g.id === copyTarget.sourceGroupId)
+      if (!sourceGroup) return
+
+      const syncIdMap = new Map<string, string>()
+      
+      const prepareTaskSync = (tasks: Task[]) => {
+        tasks.forEach(t => {
+          t.schedules.forEach(sch => {
+            if (!sch.syncInfo) {
+              syncIdMap.set(sch.id, Math.random().toString(36).substr(2, 9))
+            }
+          })
+          if (t.children) prepareTaskSync(t.children)
+        })
+      }
+      prepareTaskSync(sourceGroup.tasks)
+
+      const cloneTask = (t: Task): Task => {
+        return {
+          ...t,
+          id: Math.random().toString(36).substr(2, 9),
+          schedules: t.schedules.map(sch => {
+            const existingSyncId = sch.syncInfo?.syncId
+            const newSyncId = existingSyncId || syncIdMap.get(sch.id) || Math.random().toString(36).substr(2, 9)
+            const originPath = sch.syncInfo?.originPath || `${sourceSheet.name} > ${sourceGroup.name} > ${t.name}`
+            return {
+              ...sch,
+              id: Math.random().toString(36).substr(2, 9),
+              syncInfo: { syncId: newSyncId, originPath }
+            }
+          }),
+          children: t.children ? t.children.map(cloneTask) : undefined
+        }
+      }
+
+      const clonedGroup: TaskGroup = {
+        ...sourceGroup,
+        id: Math.random().toString(36).substr(2, 9),
+        tasks: sourceGroup.tasks.map(cloneTask)
+      }
+
+      setSheets(prev => prev.map(s => {
+        if (s.id === copyTarget.sourceSheetId) {
+          return {
+            ...s,
+            groups: s.groups.map(g => {
+              if (g.id === copyTarget.sourceGroupId) {
+                return {
+                  ...g,
+                  tasks: g.tasks.map(function updateOrigTask(t: Task): Task {
+                    const nextT = {
+                      ...t,
+                      schedules: t.schedules.map(sch => {
+                        if (!sch.syncInfo && syncIdMap.has(sch.id)) {
+                          return { ...sch, syncInfo: { syncId: syncIdMap.get(sch.id)!, originPath: "원본 (Original)" } }
+                        }
+                        return sch
+                      })
+                    }
+                    if (t.children) return { ...nextT, children: t.children.map(updateOrigTask) }
+                    return nextT
+                  })
+                }
+              }
+              return g
+            })
+          }
+        }
+        return s
+      }).map(s => {
+        if (s.id === copyTargetSheetId) {
+          return {
+            ...s,
+            groups: [...s.groups, clonedGroup]
+          }
+        }
+        return s
+      }))
+      
+      setCopyTarget(null)
+      return
+    }
+
+    if (copyTarget.type === 'task' && (!copyTargetSheetId || !copyTargetGroupId || !copyTargetTaskId)) return
+    if (copyTarget.type === 'line' && !copyTargetSheetId) return
+    
+    if (!('item' in copyTarget)) return; // TS guard
+
+    const existingSyncId = copyTarget.item.syncInfo?.syncId
+    const syncId = existingSyncId || Math.random().toString(36).substr(2, 9)
+    const originSheet = sheets.find(s => s.id === copyTarget.sourceSheetId)
+    const originSheetName = originSheet?.name || 'Unknown'
+    
+    let originPath = originSheetName
+    let originTaskType: 'inspection' | 'maintenance' | undefined = undefined
+    if (copyTarget.type === 'task') {
+      const originGroup = originSheet?.groups.find(g => g.id === copyTarget.sourceGroupId)
+      let originTaskName = 'Task'
+      const findTaskData = (tasks: Task[]) => {
+        for (const t of tasks) {
+          if (t.id === copyTarget.sourceTaskId) {
+            originTaskName = t.name
+            originTaskType = t.type
+          }
+          if (t.children) findTaskData(t.children)
+        }
+      }
+      if (originGroup) findTaskData(originGroup.tasks)
+      originPath += ` > ${originGroup?.name || 'Group'} > ${originTaskName}`
+    }
+
+    setSheets(prev => {
+      let next = [...prev]
+
+      // 1. Update origin item to have syncId ONLY if it doesn't have one already
+      if (!existingSyncId) {
+        next = next.map(s => {
+          if (s.id === copyTarget.sourceSheetId) {
+            if (copyTarget.type === 'task') {
+              return {
+                ...s,
+                groups: s.groups.map(g => {
+                  if (g.id === copyTarget.sourceGroupId) {
+                    return {
+                      ...g,
+                      tasks: g.tasks.map(function updateTask(t: Task): Task {
+                        if (t.id === copyTarget.sourceTaskId) {
+                          return {
+                            ...t,
+                            schedules: t.schedules.map(sch => 
+                              sch.id === copyTarget.item.id ? { ...sch, syncInfo: { syncId, originPath: "원본 (Original)" } } : sch
+                            )
+                          }
+                        }
+                        if (t.children) return { ...t, children: t.children.map(updateTask) }
+                        return t
+                      })
+                    }
+                  }
+                  return g
+                })
+              }
+            } else {
+              return {
+                ...s,
+                lines: (s.lines || []).map(l => 
+                  l.id === copyTarget.item.id ? { ...l, syncInfo: { syncId, originPath: "원본 (Original)" } } : l
+                )
+              }
+            }
+          }
+          return s
+        })
+      }
+
+      // 2. Insert into target
+      next = next.map(s => {
+        if (s.id === copyTargetSheetId) {
+          if (copyTarget.type === 'task') {
+            return {
+              ...s,
+              groups: s.groups.map(g => {
+                if (g.id === copyTargetGroupId) {
+                  return {
+                    ...g,
+                    tasks: g.tasks.map(function updateTask(t: Task): Task {
+                      if (t.id === copyTargetTaskId) {
+                        return {
+                          ...t,
+                          ...(originTaskType ? { type: originTaskType } : {}),
+                          schedules: [...t.schedules, { ...(copyTarget.item as Schedule), id: Math.random().toString(36).substr(2, 9), syncInfo: { syncId, originPath } }]
+                        }
+                      }
+                      if (t.children) return { ...t, children: t.children.map(updateTask) }
+                      return t
+                    })
+                  }
+                }
+                return g
+              })
+            }
+          } else {
+            return {
+              ...s,
+              lines: [...(s.lines || []), { ...(copyTarget.item as HorizontalLine), id: Math.random().toString(36).substr(2, 9), syncInfo: { syncId, originPath } }]
+            }
+          }
+        }
+        return s
+      })
+      return next
+    })
+    
+    setCopyTarget(null)
+  }
+
+
   const handleCancelEdit = () => {
     if (confirm("수정사항을 저장하지 않고 나가시겠습니까?")) {
       if (backupSheets) {
@@ -691,7 +978,56 @@ export function TimelineView() {
     updateTaskInGroup(groupId, taskId, (t) => ({ ...t, name: newName }))
   }
 
+  const applySyncedScheduleUpdate = (syncId: string, updates: Partial<Schedule>) => {
+    setSheets(prev => prev.map(sheet => ({
+      ...sheet,
+      groups: sheet.groups.map(g => ({
+        ...g,
+        tasks: g.tasks.map(function updateT(t: Task): Task {
+          const nextT = {
+            ...t,
+            schedules: t.schedules.map(sch => sch.syncInfo?.syncId === syncId ? { ...sch, ...updates } : sch)
+          }
+          if (t.children) return { ...nextT, children: t.children.map(updateT) }
+          return nextT
+        })
+      }))
+    })))
+  }
+
+  const checkAndApplyScheduleSync = (scheduleId: string, updates: Partial<Schedule>): boolean => {
+    let currentSchedule: Schedule | undefined = undefined;
+    for (const s of sheets) {
+      for (const g of s.groups) {
+        const findSch = (tasks: Task[]): Schedule | undefined => {
+          for (const t of tasks) {
+            const sch = t.schedules.find(x => x.id === scheduleId)
+            if (sch) return sch
+            if (t.children) {
+              const childSch = findSch(t.children)
+              if (childSch) return childSch
+            }
+          }
+          return undefined
+        }
+        const found = findSch(g.tasks)
+        if (found) {
+          currentSchedule = found
+          break
+        }
+      }
+      if (currentSchedule) break
+    }
+    
+    if (!currentSchedule?.syncInfo) return false
+
+    const syncId = currentSchedule.syncInfo.syncId
+    applySyncedScheduleUpdate(syncId, updates)
+    return true
+  }
+
   const updateScheduleDate = (groupId: string, taskId: string, scheduleId: string, field: 'startDate' | 'endDate', newDate: Date) => {
+    if (checkAndApplyScheduleSync(scheduleId, { [field]: newDate })) return;
     updateTaskInGroup(groupId, taskId, (t) => ({
       ...t,
       schedules: t.schedules.map(s => s.id === scheduleId ? { ...s, [field]: newDate } : s)
@@ -699,6 +1035,49 @@ export function TimelineView() {
   }
 
   const updateTaskType = (groupId: string, taskId: string, newType: 'inspection' | 'maintenance') => {
+    let syncIds: string[] = []
+    
+    // Find the task to see if it has synced schedules
+    const currentSheet = sheets.find(s => s.id === currentSheetId)
+    if (currentSheet) {
+      const group = currentSheet.groups.find(g => g.id === groupId)
+      if (group) {
+        const findTask = (tasks: Task[]): Task | undefined => {
+          for (const t of tasks) {
+            if (t.id === taskId) return t
+            if (t.children) {
+              const found = findTask(t.children)
+              if (found) return found
+            }
+          }
+        }
+        const task = findTask(group.tasks)
+        if (task) {
+          syncIds = task.schedules.filter(s => s.syncInfo).map(s => s.syncInfo!.syncId)
+        }
+      }
+    }
+
+    if (syncIds.length > 0) {
+      setSheets(prev => prev.map(sheet => ({
+        ...sheet,
+        groups: sheet.groups.map(g => ({
+          ...g,
+          tasks: g.tasks.map(function updateT(t: Task): Task {
+            const hasSyncedSchedule = t.schedules.some(s => s.syncInfo && syncIds.includes(s.syncInfo.syncId))
+            const nextT = hasSyncedSchedule ? { ...t, type: newType } : t
+            const finalT = (t.id === taskId) ? { ...nextT, type: newType } : nextT
+            
+            if (t.children) {
+              return { ...finalT, children: t.children.map(updateT) }
+            }
+            return finalT
+          })
+        }))
+      })))
+      return
+    }
+
     updateTaskInGroup(groupId, taskId, (t) => ({ ...t, type: newType }))
   }
 
@@ -707,6 +1086,7 @@ export function TimelineView() {
   }
 
   const updateScheduleMemo = (groupId: string, taskId: string, scheduleId: string, memo: string) => {
+    if (checkAndApplyScheduleSync(scheduleId, { memo: memo.slice(0, 40) })) return;
     updateTaskInGroup(groupId, taskId, (t) => ({
       ...t,
       schedules: t.schedules.map(s => s.id === scheduleId ? { ...s, memo: memo.slice(0, 40) } : s)
@@ -714,6 +1094,7 @@ export function TimelineView() {
   }
 
   const updateScheduleColor = (groupId: string, taskId: string, scheduleId: string, color: string) => {
+    if (checkAndApplyScheduleSync(scheduleId, { color })) return;
     updateTaskInGroup(groupId, taskId, (t) => ({
       ...t,
       schedules: t.schedules.map(s => s.id === scheduleId ? { ...s, color } : s)
@@ -854,7 +1235,34 @@ export function TimelineView() {
     }))
   }
 
+  const applySyncedLineUpdate = (syncId: string, updates: Partial<HorizontalLine>) => {
+    setSheets(prev => prev.map(s => ({
+      ...s,
+      lines: (s.lines || []).map(l => l.syncInfo?.syncId === syncId ? { ...l, ...updates } : l)
+    })))
+  }
+
+  const checkAndApplyLineSync = (lineId: string, updates: Partial<HorizontalLine> | ((line: HorizontalLine) => Partial<HorizontalLine>)): boolean => {
+    let syncId: string | undefined = undefined;
+    let originLine: HorizontalLine | undefined = undefined;
+    for (const s of sheets) {
+      const l = s.lines?.find(x => x.id === lineId)
+      if (l?.syncInfo) {
+        syncId = l.syncInfo.syncId;
+        originLine = l;
+        break;
+      }
+    }
+    if (syncId && originLine) {
+      const computedUpdates = typeof updates === 'function' ? updates(originLine) : updates;
+      applySyncedLineUpdate(syncId, computedUpdates);
+      return true;
+    }
+    return false;
+  }
+
   const updateLineName = (lineId: string, name: string) => {
+    if (checkAndApplyLineSync(lineId, { name })) return;
     setSheets(prev => prev.map(s => {
       if (s.id === currentSheetId) {
         return {
@@ -867,6 +1275,7 @@ export function TimelineView() {
   }
 
   const updateLineDate = (lineId: string, field: 'startDate' | 'endDate', newDate: Date) => {
+    if (checkAndApplyLineSync(lineId, { [field]: newDate })) return;
     setSheets(prev => prev.map(s => {
       if (s.id === currentSheetId) {
         return {
@@ -879,6 +1288,7 @@ export function TimelineView() {
   }
 
   const updateLineColor = (lineId: string, color: string) => {
+    if (checkAndApplyLineSync(lineId, { color })) return;
     setSheets(prev => prev.map(s => {
       if (s.id === currentSheetId) {
         return {
@@ -891,6 +1301,13 @@ export function TimelineView() {
   }
 
   const toggleLineStyle = (lineId: string) => {
+    if (checkAndApplyLineSync(lineId, (l) => {
+      const styles: ('solid' | 'dashed' | 'dotted')[] = ['solid', 'dashed', 'dotted']
+      const curIdx = styles.indexOf(l.style || 'solid')
+      const nextStyle = styles[(curIdx + 1) % styles.length]
+      return { style: nextStyle }
+    })) return;
+    
     setSheets(prev => prev.map(s => {
       if (s.id === currentSheetId) {
         return {
@@ -993,6 +1410,36 @@ export function TimelineView() {
     return window.matchMedia("(max-width: 768px)").matches
   })
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  // Precompute sync map for shared locations
+  const syncMap = useMemo(() => {
+    const map = new Map<string, { sheetName: string; path: string }[]>()
+    sheets.forEach(s => {
+      s.groups.forEach(g => {
+        const findTasks = (tasks: Task[], pathPrefix: string) => {
+          tasks.forEach(t => {
+            const currentPath = `${pathPrefix} > ${t.name}`
+            t.schedules.forEach(sch => {
+              if (sch.syncInfo) {
+                const list = map.get(sch.syncInfo.syncId) || []
+                list.push({ sheetName: s.name, path: currentPath })
+                map.set(sch.syncInfo.syncId, list)
+              }
+            })
+            if (t.children) findTasks(t.children, currentPath)
+          })
+        }
+        findTasks(g.tasks, `${s.name} > ${g.name}`)
+      })
+      s.lines?.forEach(l => {
+        if (l.syncInfo) {
+          const list = map.get(l.syncInfo.syncId) || []
+          list.push({ sheetName: s.name, path: `${s.name} (수평선)` })
+          map.set(l.syncInfo.syncId, list)
+        }
+      })
+    })
+    return map
+  }, [sheets])
 
   // Configuration for the full scrollable range
   const timelineConfig = useMemo(() => {
@@ -1983,6 +2430,13 @@ export function TimelineView() {
                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingGroupId(group.id)}>
                                 <Pencil className="h-3 w-3" />
                               </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-600 hover:bg-emerald-50" onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setCopyTarget({ type: 'group', sourceSheetId: currentSheetId, sourceGroupId: group.id })
+                              }} title="그룹 복사 & 보내기">
+                                <CopyPlus className="h-3 w-3" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteGroup(group.id)}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -2031,18 +2485,47 @@ export function TimelineView() {
                                 style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
                               >
                                 <div
-                                  className={cn(
-                                    "absolute top-0 -translate-x-full text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max",
-                                    isEditing && !isDrawingMode && "cursor-ew-resize active:scale-95 transition-transform"
-                                  )}
-                                  style={{ backgroundColor: scheduleColor }}
-                                  onMouseDown={isEditing && !isDrawingMode ? (e) => {
-                                    e.stopPropagation()
-                                    e.preventDefault()
-                                    setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'start' })
-                                  } : undefined}
+                                  className="absolute top-0 right-0 left-0 w-0 h-0"
                                 >
-                                  {format(schedule.startDate, "M/d (eee)", { locale: ko })}
+                                  <div
+                                    className={cn(
+                                      "absolute bottom-0 right-0 text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-tl-sm w-max pointer-events-auto group/dotted flex items-center gap-1",
+                                      isEditing && !isDrawingMode && "cursor-ew-resize active:scale-95 transition-transform"
+                                    )}
+                                    style={{ backgroundColor: scheduleColor }}
+                                    onMouseDown={isEditing && !isDrawingMode ? (e) => {
+                                      e.stopPropagation()
+                                      e.preventDefault()
+                                      setResizingSchedule({ groupId: group.id, taskId: task.id, scheduleId: schedule.id, edge: 'start' })
+                                    } : undefined}
+                                  >
+                                    <span>{format(schedule.startDate, "M/d (eee)", { locale: ko })}</span>
+                                    {isEditing && !isDrawingMode && (
+                                      <button
+                                        type="button"
+                                        className="p-0.5 rounded-sm bg-black/20 hover:bg-black/40 text-white transition-colors"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setCopyTarget({
+                                            type: 'task',
+                                            sourceSheetId: currentSheetId,
+                                            sourceGroupId: group.id,
+                                            sourceTaskId: task.id,
+                                            item: schedule
+                                          });
+                                        }}
+                                        title="스케줄 복사 & 보내기"
+                                      >
+                                        <CopyPlus className="h-2.5 w-2.5" />
+                                      </button>
+                                    )}
+                                    {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
+                                      <div key={idx} title={`공유됨: ${place.path}`}>
+                                        <Link className="h-2.5 w-2.5 text-white/90" />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                               {/* Memo wrapper for sticky pushing */}
@@ -2366,6 +2849,11 @@ export function TimelineView() {
                                             <X className="h-3 w-3" />
                                           </button>
                                         )}
+                                        {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
+                                          <div key={idx} title={`공유됨: ${place.path}`}>
+                                            <Link className="h-3 w-3 text-emerald-500 shrink-0 ml-0.5" />
+                                          </div>
+                                        ))}
                                         <input
                                           className={cn(
                                             "ml-1 min-w-0 flex-1 bg-transparent border-b border-transparent text-[11px] font-bold text-foreground placeholder:text-muted-foreground/40 transition-colors",
@@ -2434,6 +2922,33 @@ export function TimelineView() {
                                     />
                                   </>
                                 )}
+                                <div className="absolute top-0 right-0 p-1 flex items-center gap-1 z-50">
+                                  {isEditing && !isDrawingMode && (
+                                    <button
+                                      type="button"
+                                      className="p-1 rounded-sm bg-white/80 dark:bg-black/80 hover:bg-white dark:hover:bg-black text-foreground shadow-sm transition-opacity"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        setCopyTarget({
+                                          type: 'task',
+                                          sourceSheetId: currentSheetId,
+                                          sourceGroupId: group.id,
+                                          sourceTaskId: task.id,
+                                          item: schedule
+                                        });
+                                      }}
+                                      title="스케줄 복사 & 보내기"
+                                    >
+                                      <CopyPlus className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                  {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
+                                    <div key={idx} title={`공유됨: ${place.path}`} className="shrink-0 bg-white/80 dark:bg-black/80 rounded p-0.5">
+                                      <Link className="h-3 w-3 text-emerald-500" />
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )
@@ -2549,9 +3064,32 @@ export function TimelineView() {
                         right: '0px',
                       }}
                     >
-                      <span className="bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-none select-none whitespace-nowrap">
-                        {line.name}
-                      </span>
+                      <div className="flex items-center gap-1 bg-background/95 dark:bg-slate-900/95 text-foreground text-[10px] leading-none font-bold px-[3px] py-[1px] rounded-sm border border-border/80 shadow-sm pointer-events-auto group/line">
+                        <span className="pointer-events-none select-none whitespace-nowrap">{line.name}</span>
+                        {isEditing && !isDrawingMode && (
+                          <button
+                            type="button"
+                            className="p-0.5 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-opacity"
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setCopyTarget({
+                                type: 'line',
+                                sourceSheetId: currentSheetId,
+                                item: line
+                              });
+                            }}
+                            title="스케줄 복사 & 보내기"
+                          >
+                            <CopyPlus className="h-3 w-3" />
+                          </button>
+                        )}
+                        {line.syncInfo && (syncMap.get(line.syncInfo.syncId) || []).map((place, idx) => (
+                          <div key={idx} title={`공유됨: ${place.path}`} className="shrink-0 pointer-events-auto">
+                            <Link className="h-3 w-3 text-emerald-500" />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2742,6 +3280,70 @@ export function TimelineView() {
           )}
         </div>
       </div>
+      
+      <Dialog open={!!copyTarget} onOpenChange={(open) => !open && setCopyTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{copyTarget?.type === 'group' ? '그룹 복사 & 보내기' : copyTarget?.type === 'line' ? '수평선 복사 & 보내기' : '스케줄 복사 & 보내기'}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">대상 탭 (Sheet)</label>
+              <select 
+                className="w-full border rounded p-2 text-sm bg-background"
+                value={copyTargetSheetId}
+                onChange={(e) => setCopyTargetSheetId(e.target.value)}
+              >
+                {sheets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            
+            {copyTarget?.type === 'task' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">대상 그룹 (Group)</label>
+                  <select 
+                    className="w-full border rounded p-2 text-sm bg-background"
+                    value={copyTargetGroupId}
+                    onChange={(e) => setCopyTargetGroupId(e.target.value)}
+                  >
+                    {sheets.find(s => s.id === copyTargetSheetId)?.groups.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">대상 하이라키 (Task)</label>
+                  <select 
+                    className="w-full border rounded p-2 text-sm bg-background"
+                    value={copyTargetTaskId}
+                    onChange={(e) => setCopyTargetTaskId(e.target.value)}
+                  >
+                    {(() => {
+                      const group = sheets.find(s => s.id === copyTargetSheetId)?.groups.find(g => g.id === copyTargetGroupId);
+                      if (!group) return null;
+                      const options: any[] = [];
+                      const traverse = (tasks: Task[], depth: number) => {
+                        tasks.forEach(t => {
+                          options.push(<option key={t.id} value={t.id}>{'\u00A0'.repeat(depth * 4)}{t.name}</option>);
+                          if (t.children) traverse(t.children, depth + 1);
+                        });
+                      };
+                      traverse(group.tasks, 0);
+                      return options;
+                    })()}
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyTarget(null)}>취소</Button>
+            <Button onClick={executeCopyAndSend}>보내기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
