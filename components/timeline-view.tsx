@@ -2494,7 +2494,7 @@ export function TimelineView() {
                                 {group.name}
                               </span>
                               {eohDataList.find(e => e.group_name === group.name) && (
-                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-sm shrink-0 shadow-sm border border-emerald-200">
+                                <span className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 shrink-0 mt-0.5">
                                   ST {eohDataList.find(e => e.group_name === group.name)?.st_eoh}k
                                 </span>
                               )}
