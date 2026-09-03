@@ -362,7 +362,15 @@ export function TimelineView() {
   const [clipboardSheet, setClipboardSheet] = useState<Sheet | null>(null)
   const [showSheetCopied, setShowSheetCopied] = useState(false)
   
-  const [eohDataList, setEohDataList] = useState<{group_name: string, st_eoh: number}[]>([])
+  const [eohDataList, setEohDataList] = useState<{
+    group_name: string;
+    gt11_eoh?: number;
+    gt11_ns?: number;
+    gt12_eoh?: number;
+    gt12_ns?: number;
+    st10_eoh?: number;
+    st10_ns?: number;
+  }[]>([])
 
   // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
   useEffect(() => {
@@ -2489,15 +2497,26 @@ export function TimelineView() {
                       ) : (
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
+                            <div className="flex items-start gap-4">
+                              <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate mt-0.5" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
                                 {group.name}
                               </span>
-                              {eohDataList.find(e => e.group_name === group.name) && (
-                                <span className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 shrink-0 mt-0.5">
-                                  ST {eohDataList.find(e => e.group_name === group.name)?.st_eoh}k
-                                </span>
-                              )}
+                              {eohDataList.find(e => e.group_name === group.name) && (() => {
+                                const d = eohDataList.find(e => e.group_name === group.name)!;
+                                return (
+                                  <div className="flex flex-col gap-0.5 text-[10.5px] font-medium text-slate-500/90 dark:text-slate-400/90 tracking-tight mt-0.5">
+                                    <div className="flex items-center gap-3">
+                                      {d.gt11_eoh != null && <span>GT11 {d.gt11_eoh}k, NS {d.gt11_ns}</span>}
+                                      {d.gt12_eoh != null && <span>GT12 {d.gt12_eoh}k, NS {d.gt12_ns}</span>}
+                                    </div>
+                                    {d.st10_eoh != null && (
+                                      <div className="flex items-center gap-3">
+                                        <span>ST10 {d.st10_eoh}k, NS {d.st10_ns}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                             {hasMaintenanceTask && (
                               <span className="text-xs font-bold text-slate-500 dark:text-slate-500">
