@@ -361,6 +361,8 @@ export function TimelineView() {
   const [clipboardTask, setClipboardTask] = useState<Task | null>(null)
   const [clipboardSheet, setClipboardSheet] = useState<Sheet | null>(null)
   const [showSheetCopied, setShowSheetCopied] = useState(false)
+  
+  const [eohDataList, setEohDataList] = useState<{group_name: string, st_eoh: number}[]>([])
 
   // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
   useEffect(() => {
@@ -368,6 +370,12 @@ export function TimelineView() {
       setIsLoading(true)
       try {
         const { data, error } = await supabase.from('timeline_sheets').select('*').eq('name', 'Sheet 1').single()
+        
+        const { data: eohData, error: eohError } = await supabase.from('eoh_data').select('*')
+        console.log("🚀 [DEBUG] Fetched EOH data:", eohData, eohError)
+        if (eohData && !eohError) {
+          setEohDataList(eohData)
+        }
 
         if (error) {
           console.error("데이터 불러오기 오류:", error.message)
@@ -2481,9 +2489,16 @@ export function TimelineView() {
                       ) : (
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
-                              {group.name}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
+                                {group.name}
+                              </span>
+                              {eohDataList.find(e => e.group_name === group.name) && (
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-sm shrink-0 shadow-sm border border-emerald-200">
+                                  ST {eohDataList.find(e => e.group_name === group.name)?.st_eoh}k
+                                </span>
+                              )}
+                            </div>
                             {hasMaintenanceTask && (
                               <span className="text-xs font-bold text-slate-500 dark:text-slate-500">
                                 ({new Date().getFullYear() % 100}년 전체정비{hasLegalInspection ? "+법정검사" : ""} {maintenanceDaysInCurrentYear}일)
