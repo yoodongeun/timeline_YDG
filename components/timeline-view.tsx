@@ -2582,7 +2582,7 @@ export function TimelineView() {
                                         <CopyPlus className="h-2.5 w-2.5" />
                                       </button>
                                     )}
-                                    {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
+                                    {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId)?.length ?? 0) > 1 && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
                                       <div key={idx} title={`공유됨: ${place.path}`}>
                                         <Link className="h-2.5 w-2.5 text-white/90" />
                                       </div>
@@ -2911,7 +2911,7 @@ export function TimelineView() {
                                             <X className="h-3 w-3" />
                                           </button>
                                         )}
-                                        {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
+                                        {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId)?.length ?? 0) > 1 && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
                                           <div key={idx} title={`공유됨: ${place.path}`}>
                                             <Link className="h-3 w-3 text-emerald-500 shrink-0 ml-0.5" />
                                           </div>
@@ -3005,7 +3005,7 @@ export function TimelineView() {
                                       <CopyPlus className="h-3 w-3" />
                                     </button>
                                   )}
-                                  {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
+                                  {schedule.syncInfo && (syncMap.get(schedule.syncInfo.syncId)?.length ?? 0) > 1 && (syncMap.get(schedule.syncInfo.syncId) || []).map((place, idx) => (
                                     <div key={idx} title={`공유됨: ${place.path}`} className="shrink-0 bg-white/80 dark:bg-black/80 rounded p-0.5">
                                       <Link className="h-3 w-3 text-emerald-500" />
                                     </div>
@@ -3146,7 +3146,7 @@ export function TimelineView() {
                             <CopyPlus className="h-3 w-3" />
                           </button>
                         )}
-                        {line.syncInfo && (syncMap.get(line.syncInfo.syncId) || []).map((place, idx) => (
+                        {line.syncInfo && (syncMap.get(line.syncInfo.syncId)?.length ?? 0) > 1 && (syncMap.get(line.syncInfo.syncId) || []).map((place, idx) => (
                           <div key={idx} title={`공유됨: ${place.path}`} className="shrink-0 pointer-events-auto">
                             <Link className="h-3 w-3 text-emerald-500" />
                           </div>
