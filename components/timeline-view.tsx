@@ -2517,7 +2517,7 @@ export function TimelineView() {
                                           </div>
                                         </div>
                                       </TooltipTrigger>
-                                      <TooltipContent side="right" align="center" sideOffset={12} className="w-auto p-4 z-[99999] shadow-xl bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                                      <TooltipContent side="right" align="center" sideOffset={12} className="w-auto p-4 z-[99999] shadow-xl bg-white dark:bg-slate-800 border border-solid border-slate-400 dark:border-slate-500 rounded-lg">
                                         <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
                                           <div className="flex items-center gap-4">
                                             {d.gt11_eoh != null && <span>GT11 {Number(d.gt11_eoh).toFixed(1)}k, NS {d.gt11_ns}</span>}
