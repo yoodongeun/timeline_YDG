@@ -366,14 +366,7 @@ export function TimelineView() {
   
   const [eohDataList, setEohDataList] = useState<{
     group_name: string;
-    gt11_eoh?: number;
-    gt11_ns?: number;
-    gt12_eoh?: number;
-    gt12_ns?: number;
-    st10_eoh?: number;
-    st10_ns?: number;
-    created_at?: string;
-    updated_at?: string;
+    [key: string]: any;
   }[]>([])
 
   // 1. Supabase에서 데이터 불러오기 (초기 마운트 시 1회)
@@ -2505,7 +2498,7 @@ export function TimelineView() {
                               <span className="text-sm font-bold text-slate-600 dark:text-slate-400 truncate mt-0.5" onDoubleClick={() => isEditing && setEditingGroupId(group.id)}>
                                 {group.name}
                               </span>
-                              {currentSheet?.name === "발전소 정비일정" && group.name === "LNG 1호기" && eohDataList.find(e => e.group_name === group.name) && (() => {
+                              {currentSheet?.name === "발전소 정비일정" && eohDataList.find(e => e.group_name === group.name) && (() => {
                                 const d = eohDataList.find(e => e.group_name === group.name)!;
                                 return (
                                   <TooltipProvider delayDuration={100}>
@@ -2519,14 +2512,56 @@ export function TimelineView() {
                                       </TooltipTrigger>
                                       <TooltipContent side="right" align="center" sideOffset={12} className="w-auto p-4 z-[99999] shadow-xl bg-white dark:bg-slate-800 border border-solid border-slate-400 dark:border-slate-500 rounded-lg">
                                         <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
-                                          <div className="flex items-center gap-4">
-                                            {d.gt11_eoh != null && <span>GT11 {Number(d.gt11_eoh).toFixed(1)}k, NS {d.gt11_ns}</span>}
-                                            {d.gt12_eoh != null && <span>GT12 {Number(d.gt12_eoh).toFixed(1)}k, NS {d.gt12_ns}</span>}
-                                          </div>
-                                          {d.st10_eoh != null && (
-                                            <div className="flex items-center gap-4">
-                                              <span>ST10 {Number(d.st10_eoh).toFixed(1)}k, NS {d.st10_ns}</span>
-                                            </div>
+                                          {group.name === "LNG 1호기" && (
+                                            <>
+                                              <div className="flex items-center gap-4">
+                                                {d.gt11_eoh != null && <span>GT11 {Number(d.gt11_eoh).toFixed(1)}k, NS {d.gt11_ns}</span>}
+                                                {d.gt12_eoh != null && <span>GT12 {Number(d.gt12_eoh).toFixed(1)}k, NS {d.gt12_ns}</span>}
+                                              </div>
+                                              {d.st10_eoh != null && (
+                                                <div className="flex items-center gap-4">
+                                                  <span>ST10 {Number(d.st10_eoh).toFixed(1)}k, NS {d.st10_ns}</span>
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+                                          {group.name === "LNG 2호기" && (
+                                            <>
+                                              <div className="flex items-center gap-4">
+                                                {d.gt21_eoh != null && <span>GT21 {Number(d.gt21_eoh).toFixed(1)}k, NS {d.gt21_ns}</span>}
+                                                {d.gt22_eoh != null && <span>GT22 {Number(d.gt22_eoh).toFixed(1)}k, NS {d.gt22_ns}</span>}
+                                              </div>
+                                              {d.st20_eoh != null && (
+                                                <div className="flex items-center gap-4">
+                                                  <span>ST20 {Number(d.st20_eoh).toFixed(1)}k, NS {d.st20_ns}</span>
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+                                          {group.name === "LNG 3호기" && (
+                                            <>
+                                              <div className="flex items-center gap-4">
+                                                {d.gt30_ebh != null && <span>GT30 {Number(d.gt30_ebh).toFixed(1)}k, ES {d.gt30_es}</span>}
+                                              </div>
+                                              {d.st30_eoh != null && (
+                                                <div className="flex items-center gap-4">
+                                                  <span>ST30 {Number(d.st30_eoh).toFixed(1)}k, NS {d.st30_ns}</span>
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
+                                          {group.name === "LNG 4호기" && (
+                                            <>
+                                              <div className="flex items-center gap-4">
+                                                {d.gt51_ebh != null && <span>GT51 {Number(d.gt51_ebh).toFixed(1)}k, ES {d.gt51_es}</span>}
+                                                {d.gt52_ebh != null && <span>GT52 {Number(d.gt52_ebh).toFixed(1)}k, ES {d.gt52_es}</span>}
+                                              </div>
+                                              {d.st50_eoh != null && (
+                                                <div className="flex items-center gap-4">
+                                                  <span>ST50 {Number(d.st50_eoh).toFixed(1)}k, NS {d.st50_ns}</span>
+                                                </div>
+                                              )}
+                                            </>
                                           )}
                                           {(d.updated_at || d.created_at) && (
                                             <div className="text-[12px] font-normal text-slate-500 mt-1 pt-2 border-t border-slate-200 dark:border-slate-700">
