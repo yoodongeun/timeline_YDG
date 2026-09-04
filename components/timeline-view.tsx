@@ -2500,6 +2500,15 @@ export function TimelineView() {
                               </span>
                               {currentSheet?.name === "발전소 정비일정" && eohDataList.find(e => e.group_name === group.name) && (() => {
                                 const d = eohDataList.find(e => e.group_name === group.name)!;
+                                const Metric = ({ label, val1, val2Label, val2 }: { label: string, val1: any, val2Label: string, val2: any }) => (
+                                  <span className="flex items-center">
+                                    <span className="text-slate-500 dark:text-slate-400 font-semibold mr-1.5">{label}</span>
+                                    <span className="text-blue-600 dark:text-blue-400 font-extrabold text-[15px] tracking-normal">{Number(val1).toFixed(1)}k</span>
+                                    <span className="text-slate-300 dark:text-slate-600 mx-2 font-light">|</span>
+                                    <span className="text-slate-500 dark:text-slate-400 font-semibold mr-1.5">{val2Label}</span>
+                                    <span className="text-rose-600 dark:text-rose-400 font-extrabold text-[15px] tracking-normal">{val2}</span>
+                                  </span>
+                                );
                                 return (
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
@@ -2514,51 +2523,51 @@ export function TimelineView() {
                                         <div className="flex flex-col gap-2 text-[14px] font-bold text-slate-800 dark:text-slate-200 tracking-tight">
                                           {group.name === "LNG 1호기" && (
                                             <>
-                                              <div className="flex items-center gap-4">
-                                                {d.gt11_eoh != null && <span>GT11 {Number(d.gt11_eoh).toFixed(1)}k, NS {d.gt11_ns}</span>}
-                                                {d.gt12_eoh != null && <span>GT12 {Number(d.gt12_eoh).toFixed(1)}k, NS {d.gt12_ns}</span>}
+                                              <div className="flex items-center gap-6">
+                                                {d.gt11_eoh != null && <Metric label="GT11" val1={d.gt11_eoh} val2Label="NS" val2={d.gt11_ns} />}
+                                                {d.gt12_eoh != null && <Metric label="GT12" val1={d.gt12_eoh} val2Label="NS" val2={d.gt12_ns} />}
                                               </div>
                                               {d.st10_eoh != null && (
-                                                <div className="flex items-center gap-4">
-                                                  <span>ST10 {Number(d.st10_eoh).toFixed(1)}k, NS {d.st10_ns}</span>
+                                                <div className="flex items-center gap-6">
+                                                  <Metric label="ST10" val1={d.st10_eoh} val2Label="NS" val2={d.st10_ns} />
                                                 </div>
                                               )}
                                             </>
                                           )}
                                           {group.name === "LNG 2호기" && (
                                             <>
-                                              <div className="flex items-center gap-4">
-                                                {d.gt21_eoh != null && <span>GT21 {Number(d.gt21_eoh).toFixed(1)}k, NS {d.gt21_ns}</span>}
-                                                {d.gt22_eoh != null && <span>GT22 {Number(d.gt22_eoh).toFixed(1)}k, NS {d.gt22_ns}</span>}
+                                              <div className="flex items-center gap-6">
+                                                {d.gt21_eoh != null && <Metric label="GT21" val1={d.gt21_eoh} val2Label="NS" val2={d.gt21_ns} />}
+                                                {d.gt22_eoh != null && <Metric label="GT22" val1={d.gt22_eoh} val2Label="NS" val2={d.gt22_ns} />}
                                               </div>
                                               {d.st20_eoh != null && (
-                                                <div className="flex items-center gap-4">
-                                                  <span>ST20 {Number(d.st20_eoh).toFixed(1)}k, NS {d.st20_ns}</span>
+                                                <div className="flex items-center gap-6">
+                                                  <Metric label="ST20" val1={d.st20_eoh} val2Label="NS" val2={d.st20_ns} />
                                                 </div>
                                               )}
                                             </>
                                           )}
                                           {group.name === "LNG 3호기" && (
                                             <>
-                                              <div className="flex items-center gap-4">
-                                                {d.gt30_ebh != null && <span>GT30 {Number(d.gt30_ebh).toFixed(1)}k, ES {d.gt30_es}</span>}
+                                              <div className="flex items-center gap-6">
+                                                {d.gt30_ebh != null && <Metric label="GT30" val1={d.gt30_ebh} val2Label="ES" val2={d.gt30_es} />}
                                               </div>
                                               {d.st30_eoh != null && (
-                                                <div className="flex items-center gap-4">
-                                                  <span>ST30 {Number(d.st30_eoh).toFixed(1)}k, NS {d.st30_ns}</span>
+                                                <div className="flex items-center gap-6">
+                                                  <Metric label="ST30" val1={d.st30_eoh} val2Label="NS" val2={d.st30_ns} />
                                                 </div>
                                               )}
                                             </>
                                           )}
                                           {group.name === "LNG 4호기" && (
                                             <>
-                                              <div className="flex items-center gap-4">
-                                                {d.gt51_ebh != null && <span>GT51 {Number(d.gt51_ebh).toFixed(1)}k, ES {d.gt51_es}</span>}
-                                                {d.gt52_ebh != null && <span>GT52 {Number(d.gt52_ebh).toFixed(1)}k, ES {d.gt52_es}</span>}
+                                              <div className="flex items-center gap-6">
+                                                {d.gt51_ebh != null && <Metric label="GT51" val1={d.gt51_ebh} val2Label="ES" val2={d.gt51_es} />}
+                                                {d.gt52_ebh != null && <Metric label="GT52" val1={d.gt52_ebh} val2Label="ES" val2={d.gt52_es} />}
                                               </div>
                                               {d.st50_eoh != null && (
-                                                <div className="flex items-center gap-4">
-                                                  <span>ST50 {Number(d.st50_eoh).toFixed(1)}k, NS {d.st50_ns}</span>
+                                                <div className="flex items-center gap-6">
+                                                  <Metric label="ST50" val1={d.st50_eoh} val2Label="NS" val2={d.st50_ns} />
                                                 </div>
                                               )}
                                             </>
