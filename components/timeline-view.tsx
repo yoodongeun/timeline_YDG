@@ -2644,7 +2644,7 @@ export function TimelineView() {
                               />
                               <div
                                 className="absolute bottom-0 w-px border-l border-dashed pointer-events-auto"
-                                style={{ left: `${pos.leftPercent}%`, top: '-35px', borderColor: borderColor }}
+                                style={{ left: `${pos.leftPercent}%`, top: '-20px', borderColor: borderColor }}
                               >
                                 <div
                                   className="absolute top-0 right-0 left-0 w-0 h-0"
