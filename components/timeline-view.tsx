@@ -433,10 +433,53 @@ export function TimelineView() {
 
 
   const toggleScheduleVisibility = (taskId: string) => {
+    const rowEl = document.getElementById(`task-row-${taskId}`);
+    const containerEl = rowEl?.closest('.relative.min-h-full');
+    let yThreshold = -1;
+    let oldRowHeight = 0;
+    if (containerEl && rowEl) {
+      yThreshold = rowEl.getBoundingClientRect().top - containerEl.getBoundingClientRect().top;
+      oldRowHeight = rowEl.getBoundingClientRect().height;
+    }
+
     setExpandedSchedules(prev => ({
       ...prev,
       [taskId]: !prev[taskId]
     }))
+
+    if (containerEl && rowEl) {
+      let fired = false;
+      const observer = new ResizeObserver(() => {
+        if (fired) return;
+        const currentEl = document.getElementById(`task-row-${taskId}`);
+        if (!currentEl) return;
+        const newRowHeight = currentEl.getBoundingClientRect().height;
+        const heightDiff = newRowHeight - oldRowHeight;
+        
+        if (Math.abs(heightDiff) > 1) {
+          fired = true;
+          setSheets(prev => prev.map(s => {
+              if (s.id !== currentSheetId) return s;
+              return {
+                  ...s,
+                  lines: (s.lines || []).map(line => {
+                      if (line.top >= yThreshold - 5) {
+                          return { ...line, top: line.top + heightDiff };
+                      }
+                      return line;
+                  })
+              };
+          }));
+          observer.disconnect();
+        }
+      });
+      
+      observer.observe(rowEl);
+      
+      setTimeout(() => {
+        if (!fired) observer.disconnect();
+      }, 3000);
+    }
   }
 
   const currentSheet = useMemo(() =>
@@ -1171,7 +1214,52 @@ export function TimelineView() {
   }
 
   const toggleExpand = (groupId: string, taskId: string) => {
-    updateTaskInGroup(groupId, taskId, (t) => ({ ...t, isExpanded: !t.isExpanded }))
+    const rowEl = document.getElementById(`task-row-${taskId}`);
+    const groupEl = document.getElementById(`group-section-${groupId}`);
+    const containerEl = rowEl?.closest('.relative.min-h-full');
+    let yThreshold = -1;
+    let oldGroupHeight = 0;
+    
+    if (containerEl && rowEl && groupEl) {
+      yThreshold = rowEl.getBoundingClientRect().top - containerEl.getBoundingClientRect().top;
+      oldGroupHeight = groupEl.getBoundingClientRect().height;
+    }
+
+    updateTaskInGroup(groupId, taskId, (t) => ({ ...t, isExpanded: !t.isExpanded }));
+
+    if (containerEl && rowEl && groupEl) {
+      let fired = false;
+      const observer = new ResizeObserver(() => {
+        if (fired) return;
+        const currentEl = document.getElementById(`group-section-${groupId}`);
+        if (!currentEl) return;
+        const newGroupHeight = currentEl.getBoundingClientRect().height;
+        const heightDiff = newGroupHeight - oldGroupHeight;
+        
+        if (Math.abs(heightDiff) > 1) {
+          fired = true;
+          setSheets(prev => prev.map(s => {
+              if (s.id !== currentSheetId) return s;
+              return {
+                  ...s,
+                  lines: (s.lines || []).map(line => {
+                      if (line.top >= yThreshold - 5) {
+                          return { ...line, top: line.top + heightDiff };
+                      }
+                      return line;
+                  })
+              };
+          }));
+          observer.disconnect();
+        }
+      });
+      
+      observer.observe(groupEl);
+      
+      setTimeout(() => {
+        if (!fired) observer.disconnect();
+      }, 3000);
+    }
   }
 
   // Sheet management
