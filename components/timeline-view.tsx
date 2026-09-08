@@ -2536,6 +2536,7 @@ export function TimelineView() {
 
               return (
                 <div key={group.id} 
+                  id={`group-section-${group.id}`}
                   className={cn(
                     "relative group/section first:border-t-0 border-t-4 border-slate-400 dark:border-slate-600",
                     isEditing && "cursor-grab active:cursor-grabbing"
@@ -2844,6 +2845,7 @@ export function TimelineView() {
                     {/* Task Rows */}
                     {groupTasks.map(({ task, depth }) => (
                       <div
+                        id={`task-row-${task.id}`}
                         key={task.id}
                         draggable={isEditing}
                         onDragStart={(e) => {
