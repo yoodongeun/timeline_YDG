@@ -86,6 +86,7 @@ interface Task {
   color?: string
   children?: Task[]
   isExpanded?: boolean
+  isSchedulesExpanded?: boolean
 }
 
 interface TaskGroup {
@@ -432,7 +433,7 @@ export function TimelineView() {
 
 
 
-  const toggleScheduleVisibility = (taskId: string) => {
+  const toggleScheduleVisibility = (groupId: string, taskId: string) => {
     const rowEl = document.getElementById(`task-row-${taskId}`);
     const containerEl = rowEl?.closest('.relative.min-h-full');
     let yThreshold = -1;
@@ -442,10 +443,7 @@ export function TimelineView() {
       oldRowHeight = rowEl.getBoundingClientRect().height;
     }
 
-    setExpandedSchedules(prev => ({
-      ...prev,
-      [taskId]: !prev[taskId]
-    }))
+    updateTaskInGroup(groupId, taskId, t => ({ ...t, isSchedulesExpanded: !t.isSchedulesExpanded }));
 
     if (containerEl && rowEl) {
       let fired = false;
@@ -2467,14 +2465,24 @@ export function TimelineView() {
                     className="h-6 px-1.5 text-[10px] font-bold gap-1 text-muted-foreground hover:text-foreground ml-1"
                     onClick={() => {
                       const allTasks = flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks))
-                      const hasAnyExpanded = allTasks.some(ft => expandedSchedules[ft.task.id])
-                      const newState: Record<string, boolean> = {}
-                      allTasks.forEach(ft => { newState[ft.task.id] = !hasAnyExpanded })
-                      setExpandedSchedules(newState)
+                      const hasAnyExpanded = allTasks.some(ft => ft.task.isSchedulesExpanded)
+                      const targetState = !hasAnyExpanded
+                      setSheets(prev => prev.map(s => {
+                        if (s.id !== currentSheetId) return s;
+                        return {
+                          ...s,
+                          groups: s.groups.map(g => ({
+                            ...g,
+                            tasks: g.tasks.map(function traverse(t): any {
+                              return { ...t, isSchedulesExpanded: targetState, children: t.children ? t.children.map(traverse) : undefined }
+                            })
+                          }))
+                        }
+                      }))
                     }}
                   >
                     <CalendarIcon className="h-3 w-3" />
-                    {flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks)).some(ft => expandedSchedules[ft.task.id]) ? "전체 날짜 접기" : "전체 날짜 펼치기"}
+                    {flattenTasksWithDepth(currentSheet.groups.flatMap(g => g.tasks)).some(ft => ft.task.isSchedulesExpanded) ? "전체 날짜 접기" : "전체 날짜 펼치기"}
                   </Button>
                 </div>
               )}
@@ -2921,10 +2929,10 @@ export function TimelineView() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-4 w-4 p-0 shrink-0 hover:bg-muted"
-                                        onClick={(e) => { e.stopPropagation(); toggleScheduleVisibility(task.id) }}
-                                        title={expandedSchedules[task.id] ? "날짜 접기" : "날짜 펼치기"}
+                                        onClick={(e) => { e.stopPropagation(); toggleScheduleVisibility(group.id, task.id) }}
+                                        title={task.isSchedulesExpanded ? "날짜 접기" : "날짜 펼치기"}
                                       >
-                                        {expandedSchedules[task.id] ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                                        {task.isSchedulesExpanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                                       </Button>
                                     )}
                                     {editingId === task.id ? (
@@ -3019,7 +3027,7 @@ export function TimelineView() {
                                   )}
                                 </div>
                                 {/* Schedule Date Pickers (multiple) */}
-                                {(task.schedules.length <= 1 || expandedSchedules[task.id]) && (
+                                {(task.schedules.length <= 1 || task.isSchedulesExpanded) && (
                                   <>
                                     {task.schedules.map((schedule, sIdx) => (
                                       <div
