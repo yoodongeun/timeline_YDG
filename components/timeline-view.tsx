@@ -199,6 +199,7 @@ function serializeSheets(sheets: Sheet[]): any[] {
 function deserializeTasks(data: any[]): Task[] {
   return data.map((t) => ({
     ...t,
+    isSchedulesExpanded: false,
     schedules: t.schedules.map((s: any) => ({
       ...s,
       startDate: new Date(s.startDate),
