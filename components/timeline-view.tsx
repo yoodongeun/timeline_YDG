@@ -457,18 +457,16 @@ export function TimelineView() {
         
         if (Math.abs(heightDiff) > 1) {
           fired = true;
-          setSheets(prev => prev.map(s => {
-              if (s.id !== currentSheetId) return s;
-              return {
-                  ...s,
-                  lines: (s.lines || []).map(line => {
-                      if (line.top >= yThreshold - 5) {
-                          return { ...line, top: line.top + heightDiff };
-                      }
-                      return line;
-                  })
-              };
-          }));
+          const currentLines = sheets.find(s => s.id === currentSheetId)?.lines || [];
+          setLineOffsets(prev => {
+            const next = { ...prev };
+            currentLines.forEach(line => {
+              if (line.top + (prev[line.id] || 0) >= yThreshold - 5) {
+                next[line.id] = (prev[line.id] || 0) + heightDiff;
+              }
+            });
+            return next;
+          });
           if (observer) observer.disconnect();
         }
       };
@@ -591,6 +589,9 @@ export function TimelineView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null)
   const [editingLineId, setEditingLineId] = useState<string | null>(null)
+
+  // Temporary visual offsets for lines (NOT saved to DB) - caused by schedule/task expand/collapse
+  const [lineOffsets, setLineOffsets] = useState<Record<string, number>>({})
 
   const [isDrawingMode, setIsDrawingMode] = useState(false)
   const [drawingStart, setDrawingStart] = useState<{ xPercent: number; y: number } | null>(null)
@@ -1244,18 +1245,16 @@ export function TimelineView() {
         
         if (Math.abs(heightDiff) > 1) {
           fired = true;
-          setSheets(prev => prev.map(s => {
-              if (s.id !== currentSheetId) return s;
-              return {
-                  ...s,
-                  lines: (s.lines || []).map(line => {
-                      if (line.top >= yThreshold - 5) {
-                          return { ...line, top: line.top + heightDiff };
-                      }
-                      return line;
-                  })
-              };
-          }));
+          const currentLines = sheets.find(s => s.id === currentSheetId)?.lines || [];
+          setLineOffsets(prev => {
+            const next = { ...prev };
+            currentLines.forEach(line => {
+              if (line.top + (prev[line.id] || 0) >= yThreshold - 5) {
+                next[line.id] = (prev[line.id] || 0) + heightDiff;
+              }
+            });
+            return next;
+          });
           if (observer) observer.disconnect();
         }
       };
@@ -1803,6 +1802,8 @@ export function TimelineView() {
       if (draggedLineId) {
         const deltaY = e.clientY - draggedLineStartY
         const newTop = Math.max(24, draggedLineStartTop + deltaY) // Bound so it doesn't go offscreen/under header
+        // Reset the visual offset since we're setting the real top now
+        setLineOffsets(prev => ({ ...prev, [draggedLineId]: 0 }));
         setSheets(prev => prev.map(s => {
           if (s.id === currentSheetId) {
             return {
@@ -2291,7 +2292,7 @@ export function TimelineView() {
                 dragOverSheetId === s.id && "ring-2 ring-primary/50 ring-offset-1 rounded-t-lg z-30"
               )}
               style={{ marginLeft: idx === 0 ? 0 : '-15px' }}
-              onClick={() => !draggedSheetId && setCurrentSheetId(s.id)}
+              onClick={() => { if (!draggedSheetId) { setCurrentSheetId(s.id); setLineOffsets({}); } }}
             >
               {/* Trapezoid Background - using pseudo element for the sloped effect */}
               <div
@@ -3299,7 +3300,7 @@ export function TimelineView() {
                 style={{
                   left: pos.left,
                   width: pos.width,
-                  top: `${line.top}px`,
+                  top: `${line.top + (lineOffsets[line.id] || 0)}px`,
                   height: '20px',
                   marginTop: '-10px',
                 }}
@@ -3309,7 +3310,7 @@ export function TimelineView() {
                   if (!isEditing || isDrawingMode) return
                   e.stopPropagation()
                   e.preventDefault()
-                  handleLineDragStart(line.id, e.clientY, line.top)
+                  handleLineDragStart(line.id, e.clientY, line.top + (lineOffsets[line.id] || 0))
                 }}
                 onDoubleClick={(e) => {
                   if (!isEditing) return
