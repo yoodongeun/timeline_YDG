@@ -449,7 +449,7 @@ export function TimelineView() {
 
     if (containerEl && rowEl) {
       let fired = false;
-      const observer = new ResizeObserver(() => {
+      const handleResize = () => {
         if (fired) return;
         const currentEl = document.getElementById(`task-row-${taskId}`);
         if (!currentEl) return;
@@ -470,11 +470,18 @@ export function TimelineView() {
                   })
               };
           }));
-          observer.disconnect();
+          if (observer) observer.disconnect();
         }
-      });
-      
+      };
+
+      const observer = new ResizeObserver(handleResize);
       observer.observe(rowEl);
+      
+      setTimeout(handleResize, 50);
+      setTimeout(handleResize, 150);
+      setTimeout(handleResize, 300);
+      setTimeout(handleResize, 500);
+      setTimeout(handleResize, 1000);
       
       setTimeout(() => {
         if (!fired) observer.disconnect();
@@ -1229,7 +1236,7 @@ export function TimelineView() {
 
     if (containerEl && rowEl && groupEl) {
       let fired = false;
-      const observer = new ResizeObserver(() => {
+      const handleResize = () => {
         if (fired) return;
         const currentEl = document.getElementById(`group-section-${groupId}`);
         if (!currentEl) return;
@@ -1250,11 +1257,18 @@ export function TimelineView() {
                   })
               };
           }));
-          observer.disconnect();
+          if (observer) observer.disconnect();
         }
-      });
-      
+      };
+
+      const observer = new ResizeObserver(handleResize);
       observer.observe(groupEl);
+      
+      setTimeout(handleResize, 50);
+      setTimeout(handleResize, 150);
+      setTimeout(handleResize, 300);
+      setTimeout(handleResize, 500);
+      setTimeout(handleResize, 1000);
       
       setTimeout(() => {
         if (!fired) observer.disconnect();
