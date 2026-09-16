@@ -258,6 +258,7 @@ export function TimelineView() {
     }
     return "1"
   })
+  const [anjeonPassword, setAnjeonPassword] = useState<string>("7") // 안전팀 탭 전용 비밀번호
 
   // Server time offset (serverTime - Date.now())
   const [timeOffset, setTimeOffset] = useState(0)
@@ -317,7 +318,8 @@ export function TimelineView() {
             data: {
               sheets: serializeSheets(sheets),
               currentId: currentSheetId,
-              appPassword: appPassword
+              appPassword: appPassword,
+              anjeonPassword: anjeonPassword
             },
             updated_at: getCorrectedNow().toISOString()
           })
@@ -336,7 +338,7 @@ export function TimelineView() {
 
     const timeoutId = setTimeout(saveData, 2000) // 2 second debounce
     return () => clearTimeout(timeoutId)
-  }, [sheets, currentSheetId, appPassword, isLoading])
+  }, [sheets, currentSheetId, appPassword, anjeonPassword, isLoading])
 
   // Color palette for folder tabs
   const TAB_COLORS = [
@@ -421,6 +423,11 @@ export function TimelineView() {
             console.log("🚀 [DEBUG] Loading password from DB")
             setAppPassword(rawData.appPassword)
             localStorage.setItem(PASSWORD_STORAGE_KEY, rawData.appPassword)
+          }
+          // 안전팀 전용 비밀번호 불러옴
+          if (rawData.anjeonPassword) {
+            console.log("🚀 [DEBUG] Loading anjeonPassword from DB")
+            setAnjeonPassword(rawData.anjeonPassword)
           }
         }
       } catch (err) {
@@ -921,7 +928,8 @@ export function TimelineView() {
           groups: serializeGroups(currentGroups),
           sheets: serializeSheets(sheets),
           currentId: currentSheetId,
-          appPassword: appPassword // 비밀번호도 데이터베이스에 함께 저장
+          appPassword: appPassword, // 비밀번호도 데이터베이스에 함께 저장
+          anjeonPassword: anjeonPassword // 안전팀 전용 비밀번호
         };
         console.log("🚀 [DEBUG] 4. 직렬화 완료. 데이터 크기(groups):", saveDataToUpsert.groups.length)
 
@@ -955,9 +963,9 @@ export function TimelineView() {
         console.log("🚀 [DEBUG] 7. handleEditToggle 완료 (finally)")
       }
     } else {
-      // 현재 탭이 "안전팀"이면 전용 비밀번호 "7" 사용, 그 외에는 appPassword 사용
+      // 현재 탭이 "안전팀"이면 전용 비밀번호 사용, 그 외에는 appPassword 사용
       const isAnjeonTab = currentSheet?.name === "안전팀"
-      const requiredPassword = isAnjeonTab ? "7" : appPassword
+      const requiredPassword = isAnjeonTab ? anjeonPassword : appPassword
       console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입", isAnjeonTab ? "(안전팀 탭)" : "(일반 탭)")
       const input = prompt("비밀번호를 입력하세요:")
       if (input === requiredPassword) {
@@ -978,15 +986,21 @@ export function TimelineView() {
   }
 
   const handleChangePassword = () => {
-    const newPassword = prompt("새 비밀번호를 입력하세요:")
+    const isAnjeonTab = currentSheet?.name === "안전팀"
+    const newPassword = prompt(isAnjeonTab ? "안전팀 새 비밀번호를 입력하세요:" : "새 비밀번호를 입력하세요:")
     if (newPassword !== null) {
       if (newPassword.trim() === "") {
         alert("비밀번호는 빈칸일 수 없습니다.")
         return
       }
-      setAppPassword(newPassword)
-      localStorage.setItem(PASSWORD_STORAGE_KEY, newPassword)
-      alert("비밀번호가 변경되었습니다.")
+      if (isAnjeonTab) {
+        setAnjeonPassword(newPassword)
+        alert("안전팀 비밀번호가 변경되었습니다.")
+      } else {
+        setAppPassword(newPassword)
+        localStorage.setItem(PASSWORD_STORAGE_KEY, newPassword)
+        alert("비밀번호가 변경되었습니다.")
+      }
     }
   }
 
@@ -1306,6 +1320,13 @@ export function TimelineView() {
       setSheets(newSheets)
       if (currentSheetId === id) {
         setCurrentSheetId(newSheets[0].id)
+      }
+      // 잠금된 시트를 삭제하면 수정 모드 해제
+      if (editingSheetLock === id) {
+        setEditingSheetLock(null)
+        setIsEditing(false)
+        setBackupSheets(null)
+        setLineOffsets({})
       }
     }
   }
