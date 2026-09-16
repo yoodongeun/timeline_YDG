@@ -73,6 +73,7 @@ interface Schedule {
   startDate: Date
   endDate: Date
   memo?: string
+  description?: string
   color?: string
   syncInfo?: SyncInfo
 }
@@ -1185,6 +1186,14 @@ export function TimelineView() {
     updateTaskInGroup(groupId, taskId, (t) => ({
       ...t,
       schedules: t.schedules.map(s => s.id === scheduleId ? { ...s, memo: memo.slice(0, 40) } : s)
+    }))
+  }
+
+  const updateScheduleDescription = (groupId: string, taskId: string, scheduleId: string, description: string) => {
+    if (checkAndApplyScheduleSync(scheduleId, { description })) return;
+    updateTaskInGroup(groupId, taskId, (t) => ({
+      ...t,
+      schedules: t.schedules.map(s => s.id === scheduleId ? { ...s, description } : s)
     }))
   }
 
@@ -3665,9 +3674,9 @@ export function TimelineView() {
                   const group = currentSheet?.groups.find(g => g.id === selectedScheduleMemo.groupId);
                   const task = group?.tasks.find(t => t.id === selectedScheduleMemo.taskId);
                   const schedule = task?.schedules.find(s => s.id === selectedScheduleMemo.scheduleId);
-                  return schedule?.memo || '';
+                  return schedule?.description || '';
                 })()}
-                onChange={(e) => updateScheduleMemo(selectedScheduleMemo.groupId, selectedScheduleMemo.taskId, selectedScheduleMemo.scheduleId, e.target.value)}
+                onChange={(e) => updateScheduleDescription(selectedScheduleMemo.groupId, selectedScheduleMemo.taskId, selectedScheduleMemo.scheduleId, e.target.value)}
               />
             </div>
           </div>
