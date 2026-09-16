@@ -2843,7 +2843,7 @@ export function TimelineView() {
                                 </div>
                               </div>
                               {/* Memo wrapper for sticky pushing */}
-                              {schedule.memo && (
+                              {(schedule.memo || isEditing) && (
                                 <div
                                   className="absolute pointer-events-none z-20 flex justify-center items-start"
                                   style={{
@@ -2862,7 +2862,19 @@ export function TimelineView() {
                                       height: 'max-content'
                                     }}
                                   >
-                                    <span className="bg-background/80 px-1 rounded shadow-sm inline-block">{schedule.memo}</span>
+                                    {isEditing ? (
+                                      <input
+                                        type="text"
+                                        className="bg-background/90 px-1 rounded shadow-sm inline-block border-none focus:outline-none focus:ring-1 focus:ring-ring text-center"
+                                        style={{ color: scheduleColor, width: `${Math.max((schedule.memo || '').length * 1.5 + 4, 8)}ch` }}
+                                        value={schedule.memo || ''}
+                                        onChange={(e) => updateScheduleMemo(group.id, task.id, schedule.id, e.target.value)}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        placeholder="메모"
+                                      />
+                                    ) : (
+                                      schedule.memo && <span className="bg-background/80 px-1 rounded shadow-sm inline-block">{schedule.memo}</span>
+                                    )}
                                   </div>
                                 </div>
                               )}
