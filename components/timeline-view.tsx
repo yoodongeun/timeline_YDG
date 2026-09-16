@@ -620,6 +620,10 @@ export function TimelineView() {
   const [backupSheets, setBackupSheets] = useState<Sheet[] | null>(null)
   const [editingSheetLock, setEditingSheetLock] = useState<string | null>(null) // locks tab switching when editing a specific sheet
 
+  const [selectedScheduleMemo, setSelectedScheduleMemo] = useState<{groupId: string, taskId: string, scheduleId: string} | null>(null)
+  const [rightPanelWidth, setRightPanelWidth] = useState(300)
+  const rightPanelDragRef = useRef<number | null>(null)
+
   type CopyTarget = {
     type: 'task'
     sourceSheetId: string
@@ -2424,13 +2428,15 @@ export function TimelineView() {
         )}
       </div>
 
-      {/* Main Content - Single scroll container */}
-      <div
-        ref={scrollContainerRef}
-        className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", "thick-scrollbar")}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
+      {/* Main Layout Row (Main Content + Right Sidebar) */}
+      <div className="flex flex-1 min-h-0 overflow-hidden w-full relative">
+        {/* Main Content - Single scroll container */}
+        <div
+          ref={scrollContainerRef}
+          className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", "thick-scrollbar")}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
         <div
           className={cn("relative min-h-full timeline-inner-container", isDrawingMode && "cursor-crosshair select-none")}
           style={{ width: `${timelineConfig.widthPercent}%`, minWidth: `calc(${sidebarW}px + 800px)` }}
@@ -2803,10 +2809,11 @@ export function TimelineView() {
                                 >
                                   <div
                                     className={cn(
-                                      "absolute bottom-0 right-0 text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-tl-sm w-max pointer-events-auto group/dotted flex items-center gap-1",
+                                      "absolute bottom-0 right-0 text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-tl-sm w-max pointer-events-auto group/dotted flex items-center gap-1 cursor-pointer hover:brightness-110",
                                       isEditing && !isDrawingMode && "cursor-ew-resize active:scale-95 transition-transform"
                                     )}
                                     style={{ backgroundColor: scheduleColor }}
+                                    onClick={() => !isEditing && setSelectedScheduleMemo({groupId: group.id, taskId: task.id, scheduleId: schedule.id})}
                                     onMouseDown={isEditing && !isDrawingMode ? (e) => {
                                       e.stopPropagation()
                                       e.preventDefault()
@@ -2873,7 +2880,14 @@ export function TimelineView() {
                                         placeholder="메모"
                                       />
                                     ) : (
-                                      schedule.memo && <span className="bg-background/80 px-1 rounded shadow-sm inline-block">{schedule.memo}</span>
+                                      schedule.memo ? (
+                                        <span 
+                                          className="bg-background/80 px-1 rounded shadow-sm inline-block cursor-pointer hover:bg-background/95 transition-colors"
+                                          onClick={() => !isEditing && setSelectedScheduleMemo({groupId: group.id, taskId: task.id, scheduleId: schedule.id})}
+                                        >
+                                          {schedule.memo}
+                                        </span>
+                                      ) : null
                                     )}
                                   </div>
                                 </div>
@@ -2884,10 +2898,11 @@ export function TimelineView() {
                               >
                                 <div
                                   className={cn(
-                                    "absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max",
+                                    "absolute top-0 -translate-x-[2px] text-white text-[11.5px] px-[1px] py-[1px] leading-none whitespace-nowrap font-bold z-20 rounded-t-sm w-max cursor-pointer hover:brightness-110",
                                     isEditing && !isDrawingMode && "cursor-ew-resize active:scale-95 transition-transform"
                                   )}
                                   style={{ backgroundColor: scheduleColor }}
+                                  onClick={() => !isEditing && setSelectedScheduleMemo({groupId: group.id, taskId: task.id, scheduleId: schedule.id})}
                                   onMouseDown={isEditing && !isDrawingMode ? (e) => {
                                     e.stopPropagation()
                                     e.preventDefault()
@@ -3226,6 +3241,7 @@ export function TimelineView() {
                               <div
                                 className="absolute h-6 rounded-md transition cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:z-10 group/bar"
                                 style={{ left: pos.left, width: pos.width, top: '16px', backgroundColor: barColor }}
+                                onClick={() => setSelectedScheduleMemo({groupId: group.id, taskId: task.id, scheduleId: schedule.id})}
                               >
                                 {isEditing && !isDrawingMode && (
                                   <>
@@ -3606,6 +3622,57 @@ export function TimelineView() {
             </Dialog>
           )}
         </div>
+      </div>
+      
+      {/* Right Sidebar for Memo */}
+      {selectedScheduleMemo && (
+        <>
+          <div 
+            className="w-1 cursor-col-resize bg-border hover:bg-primary/50 shrink-0 z-50 transition-colors"
+            onMouseDown={(e) => {
+              rightPanelDragRef.current = e.clientX;
+              const onMouseMove = (moveEvent: MouseEvent) => {
+                if (rightPanelDragRef.current !== null) {
+                  const diff = rightPanelDragRef.current - moveEvent.clientX;
+                  setRightPanelWidth(w => Math.max(150, Math.min(800, w + diff)));
+                  rightPanelDragRef.current = moveEvent.clientX;
+                }
+              };
+              const onMouseUp = () => {
+                rightPanelDragRef.current = null;
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+              };
+              window.addEventListener('mousemove', onMouseMove);
+              window.addEventListener('mouseup', onMouseUp);
+            }}
+          />
+          <div 
+            className="bg-card flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.1)] z-40 shrink-0"
+            style={{ width: rightPanelWidth }}
+          >
+            <div className="flex items-center justify-between p-3 border-b border-border">
+              <h3 className="font-semibold text-sm">일정 메모</h3>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setSelectedScheduleMemo(null)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4 flex-1 flex flex-col min-h-0">
+              <textarea
+                className="w-full h-full flex-1 p-3 rounded-md border border-input bg-transparent resize-none focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                placeholder="메모를 입력하세요..."
+                value={(() => {
+                  const group = currentSheet?.groups.find(g => g.id === selectedScheduleMemo.groupId);
+                  const task = group?.tasks.find(t => t.id === selectedScheduleMemo.taskId);
+                  const schedule = task?.schedules.find(s => s.id === selectedScheduleMemo.scheduleId);
+                  return schedule?.memo || '';
+                })()}
+                onChange={(e) => updateScheduleMemo(selectedScheduleMemo.groupId, selectedScheduleMemo.taskId, selectedScheduleMemo.scheduleId, e.target.value)}
+              />
+            </div>
+          </div>
+        </>
+      )}
       </div>
       
       <Dialog open={!!copyTarget} onOpenChange={(open) => !open && setCopyTarget(null)}>
