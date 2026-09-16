@@ -611,6 +611,7 @@ export function TimelineView() {
 
   const [isEditing, setIsEditing] = useState(false)
   const [backupSheets, setBackupSheets] = useState<Sheet[] | null>(null)
+  const [editingSheetLock, setEditingSheetLock] = useState<string | null>(null) // locks tab switching when editing a specific sheet
 
   type CopyTarget = {
     type: 'task'
@@ -900,6 +901,7 @@ export function TimelineView() {
       setIsEditing(false)
       setBackupSheets(null)
       setLineOffsets({})
+      setEditingSheetLock(null)
     }
   }
 
@@ -942,6 +944,7 @@ export function TimelineView() {
           setTimeout(() => setSaveStatus('idle'), 2000)
           setIsEditing(false)
           setBackupSheets(null)
+          setEditingSheetLock(null)
           alert("✅ [Ver 5.0] 비밀번호 포함 모든 데이터가 동기화되었습니다!")
         }
       } catch (err: any) {
@@ -952,12 +955,19 @@ export function TimelineView() {
         console.log("🚀 [DEBUG] 7. handleEditToggle 완료 (finally)")
       }
     } else {
-      console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입")
-      const input = prompt("비밀번호 4자리를 입력하세요:")
-      if (input === appPassword) {
+      // 현재 탭이 "안전팀"이면 전용 비밀번호 "7" 사용, 그 외에는 appPassword 사용
+      const isAnjeonTab = currentSheet?.name === "안전팀"
+      const requiredPassword = isAnjeonTab ? "7" : appPassword
+      console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입", isAnjeonTab ? "(안전팀 탭)" : "(일반 탭)")
+      const input = prompt("비밀번호를 입력하세요:")
+      if (input === requiredPassword) {
         console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
         setBackupSheets(deserializeSheets(serializeSheets(sheets)))
         setIsEditing(true)
+        // 안전팀 탭에서 수정 시 해당 탭에 잠금
+        if (isAnjeonTab) {
+          setEditingSheetLock(currentSheetId)
+        }
       } else if (input !== null) {
         console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
         alert("비밀번호가 틀렸습니다.")
@@ -2287,13 +2297,20 @@ export function TimelineView() {
                 setDragOverSheetId(null)
               }}
               className={cn(
-                "group relative flex items-center h-8 min-w-[110px] max-w-[220px] px-6 transition-all cursor-pointer",
+                "group relative flex items-center h-8 min-w-[110px] max-w-[220px] px-6 transition-all",
+                editingSheetLock && editingSheetLock !== s.id ? "cursor-not-allowed opacity-40" : "cursor-pointer",
                 isActive ? "z-10 -mb-[1px] drop-shadow-md" : "opacity-70 hover:opacity-100 hover:z-20",
                 draggedSheetId === s.id && "opacity-30",
                 dragOverSheetId === s.id && "ring-2 ring-primary/50 ring-offset-1 rounded-t-lg z-30"
               )}
               style={{ marginLeft: idx === 0 ? 0 : '-15px' }}
-              onClick={() => { if (!draggedSheetId) { setCurrentSheetId(s.id); setLineOffsets({}); } }}
+              onClick={() => {
+                if (editingSheetLock && editingSheetLock !== s.id) {
+                  alert("현재 탭의 수정을 완료하거나 취소한 후 다른 탭으로 이동할 수 있습니다.")
+                  return
+                }
+                if (!draggedSheetId) { setCurrentSheetId(s.id); setLineOffsets({}); }
+              }}
             >
               {/* Trapezoid Background - using pseudo element for the sloped effect */}
               <div
