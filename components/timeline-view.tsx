@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react"
+import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect } from "react"
 import { addMonths, addDays, startOfMonth, startOfDay, endOfDay, endOfMonth, differenceInDays, format, getDate, startOfYear, addYears, endOfYear } from "date-fns"
 import { ko } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -624,6 +624,19 @@ export function TimelineView() {
   const [selectedScheduleMemo, setSelectedScheduleMemo] = useState<{groupId: string, taskId: string, scheduleId: string} | null>(null)
   const [rightPanelWidth, setRightPanelWidth] = useState(300)
   const rightPanelDragRef = useRef<number | null>(null)
+
+  const scrollState = useRef({ left: 0, width: 0 })
+  
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const { left, width } = scrollState.current
+    if (width > 0 && el.scrollWidth !== width) {
+       const ratio = el.scrollWidth / width
+       el.scrollLeft = left * ratio
+       scrollState.current = { left: el.scrollLeft, width: el.scrollWidth }
+    }
+  })
 
   type CopyTarget = {
     type: 'task'
@@ -2445,6 +2458,12 @@ export function TimelineView() {
           className={cn("flex-1 overflow-auto bg-slate-50/50 dark:bg-background/50", "thick-scrollbar")}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onScroll={(e) => {
+            scrollState.current = {
+              left: e.currentTarget.scrollLeft,
+              width: e.currentTarget.scrollWidth
+            }
+          }}
         >
         <div
           className={cn("relative min-h-full timeline-inner-container", isDrawingMode && "cursor-crosshair select-none")}
