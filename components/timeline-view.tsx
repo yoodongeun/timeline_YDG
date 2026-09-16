@@ -899,6 +899,7 @@ export function TimelineView() {
       }
       setIsEditing(false)
       setBackupSheets(null)
+      setLineOffsets({})
     }
   }
 
