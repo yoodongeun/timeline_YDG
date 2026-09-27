@@ -262,6 +262,7 @@ export function TimelineView() {
   const [anjeonPassword, setAnjeonPassword] = useState<string>("7") // 안전팀 탭 전용 비밀번호
   const mySessionId = useRef(Math.random().toString(36).substring(2, 9)).current;
   const [lockedByOther, setLockedByOther] = useState(false);
+  const [isEditing, setIsEditing] = useState(false)
 
   // Server time offset (serverTime - Date.now())
   const [timeOffset, setTimeOffset] = useState(0)
@@ -663,7 +664,7 @@ export function TimelineView() {
   const [isLineEditOpen, setIsLineEditOpen] = useState(false)
   const [hoveredLineId, setHoveredLineId] = useState<string | null>(null)
 
-  const [isEditing, setIsEditing] = useState(false)
+
   const [backupSheets, setBackupSheets] = useState<Sheet[] | null>(null)
   const [editingSheetLock, setEditingSheetLock] = useState<string | null>(null) // locks tab switching when editing a specific sheet
 
