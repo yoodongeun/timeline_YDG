@@ -260,9 +260,52 @@ export function TimelineView() {
     return "1"
   })
   const [anjeonPassword, setAnjeonPassword] = useState<string>("7") // 안전팀 탭 전용 비밀번호
+  const mySessionId = useRef(Math.random().toString(36).substring(2, 9)).current;
+  const [lockedByOther, setLockedByOther] = useState(false);
 
   // Server time offset (serverTime - Date.now())
   const [timeOffset, setTimeOffset] = useState(0)
+
+  // 편집 권한(Lock) 상태 확인 및 자동 갱신
+  useEffect(() => {
+    if (!isEditing) {
+      // 1. 조회 모드: 주기적으로 Lock 상태 확인 (10초마다)
+      const checkLock = async () => {
+        try {
+          const { data } = await supabase.from('timeline_sheets').select('data').eq('name', 'Sheet 1').single();
+          if (data?.data?.editLock) {
+            const lock = data.data.editLock;
+            // 2분(120,000ms) 이상 지난 락은 만료된 것으로 간주
+            if (Date.now() - lock.timestamp < 120000 && lock.sessionId !== mySessionId) {
+              setLockedByOther(true);
+            } else {
+              setLockedByOther(false);
+            }
+          } else {
+            setLockedByOther(false);
+          }
+        } catch (e) {}
+      };
+      checkLock();
+      const interval = setInterval(checkLock, 10000);
+      return () => clearInterval(interval);
+    } else {
+      // 2. 수정 모드: 내 Lock 유지하기 위해 1분마다 갱신
+      setLockedByOther(false);
+      const renewLock = async () => {
+        try {
+          const { data: currentData } = await supabase.from('timeline_sheets').select('data').eq('name', 'Sheet 1').single();
+          if (currentData?.data) {
+            const newData = { ...currentData.data, editLock: { sessionId: mySessionId, timestamp: Date.now() } };
+            await supabase.from('timeline_sheets').update({ data: newData }).eq('name', 'Sheet 1');
+          }
+        } catch (e) {}
+      };
+      // 시작 시 바로 한 번 갱신할 필요는 없음 (handleEditToggle에서 세팅함)
+      const interval = setInterval(renewLock, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [isEditing, mySessionId]);
 
   // 초기 로드 직후 자동저장이 DB를 덮어쓰는 것을 방지하기 위한 ref
   // true = 아직 초기 로드 상태, false = 사용자가 변경한 상태 (자동저장 허용)
@@ -297,6 +340,9 @@ export function TimelineView() {
 
   // Auto-save whenever sheets or currentSheetId changes
   useEffect(() => {
+    // 수정 모드가 아닐 때는 자동저장 금지 (조회 중 탭 이동으로 인한 덮어쓰기 방지)
+    if (!isEditing) return;
+
     // isLoading 중에는 저장하지 않음, 그리고 ref를 리셋
     if (isLoading) {
       hasLoadedOnce.current = false
@@ -339,7 +385,7 @@ export function TimelineView() {
 
     const timeoutId = setTimeout(saveData, 2000) // 2 second debounce
     return () => clearTimeout(timeoutId)
-  }, [sheets, currentSheetId, appPassword, anjeonPassword, isLoading])
+  }, [sheets, currentSheetId, appPassword, anjeonPassword, isLoading, isEditing])
 
   // Color palette for folder tabs
   const TAB_COLORS = [
@@ -918,8 +964,16 @@ export function TimelineView() {
   }
 
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = async () => {
     if (confirm("수정사항을 저장하지 않고 나가시겠습니까?")) {
+      try {
+        const { data: currentData } = await supabase.from('timeline_sheets').select('data').eq('name', 'Sheet 1').single();
+        if (currentData?.data) {
+          const newData = { ...currentData.data, editLock: null };
+          await supabase.from('timeline_sheets').update({ data: newData }).eq('name', 'Sheet 1');
+        }
+      } catch (e) {}
+
       if (backupSheets) {
         setSheets(backupSheets)
       }
@@ -947,7 +1001,8 @@ export function TimelineView() {
           sheets: serializeSheets(sheets),
           currentId: currentSheetId,
           appPassword: appPassword, // 비밀번호도 데이터베이스에 함께 저장
-          anjeonPassword: anjeonPassword // 안전팀 전용 비밀번호
+          anjeonPassword: anjeonPassword, // 안전팀 전용 비밀번호
+          editLock: null // 수정 완료 시 락 해제
         };
         console.log("🚀 [DEBUG] 4. 직렬화 완료. 데이터 크기(groups):", saveDataToUpsert.groups.length)
 
@@ -985,20 +1040,39 @@ export function TimelineView() {
       const isAnjeonTab = currentSheet?.name === "안전팀"
       const requiredPassword = isAnjeonTab ? anjeonPassword : appPassword
       console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입", isAnjeonTab ? "(안전팀 탭)" : "(일반 탭)")
-      const input = prompt("비밀번호를 입력하세요:")
-      if (input === requiredPassword) {
-        console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
-        setBackupSheets(deserializeSheets(serializeSheets(sheets)))
-        setIsEditing(true)
-        // 안전팀 탭에서 수정 시 해당 탭에 잠금
-        if (isAnjeonTab) {
-          setEditingSheetLock(currentSheetId)
+
+      try {
+        const { data: currentData } = await supabase.from('timeline_sheets').select('data').eq('name', 'Sheet 1').single();
+        if (currentData?.data?.editLock) {
+           const lock = currentData.data.editLock;
+           if (Date.now() - lock.timestamp < 120000 && lock.sessionId !== mySessionId) {
+              alert("현재 다른 사용자가 편집 중입니다. 잠시 후 다시 시도해주세요.");
+              return;
+           }
         }
-      } else if (input !== null) {
-        console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
-        alert("비밀번호가 틀렸습니다.")
-      } else {
-        console.log("🚀 [DEBUG] 3. 비밀번호 입력 취소")
+
+        const input = prompt("비밀번호를 입력하세요:")
+        if (input === requiredPassword) {
+          console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
+          // 락 설정
+          const newLock = { sessionId: mySessionId, timestamp: Date.now() };
+          const newData = { ...(currentData?.data || {}), editLock: newLock };
+          await supabase.from('timeline_sheets').update({ data: newData }).eq('name', 'Sheet 1');
+
+          setBackupSheets(deserializeSheets(serializeSheets(sheets)))
+          setIsEditing(true)
+          // 안전팀 탭에서 수정 시 해당 탭에 잠금
+          if (isAnjeonTab) {
+            setEditingSheetLock(currentSheetId)
+          }
+        } else if (input !== null) {
+          console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
+          alert("비밀번호가 틀렸습니다.")
+        } else {
+          console.log("🚀 [DEBUG] 3. 비밀번호 입력 취소")
+        }
+      } catch (e) {
+        alert("편집 권한을 확인하는 중 오류가 발생했습니다.");
       }
     }
   }
@@ -2290,15 +2364,22 @@ export function TimelineView() {
               variant={isEditing ? "default" : "outline"}
               size="sm"
               onClick={handleEditToggle}
+              disabled={lockedByOther}
               className={cn(
                 "h-7 shrink-0 px-2 text-xs font-medium transition-all",
-                isEditing && "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                isEditing && "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600",
+                lockedByOther && "opacity-50 cursor-not-allowed bg-red-50 text-red-600 border-red-200"
               )}
             >
               {isEditing ? (
                 <>
                   <Check className="h-3 w-3 mr-1" />
                   수정완료
+                </>
+              ) : lockedByOther ? (
+                <>
+                  <Settings className="h-3 w-3 mr-1 animate-spin" />
+                  누군가 편집 중
                 </>
               ) : (
                 <>
