@@ -1042,18 +1042,19 @@ export function TimelineView() {
       const requiredPassword = isAnjeonTab ? anjeonPassword : appPassword
       console.log("🚀 [DEBUG] 2. 비밀번호 입력 모드 진입", isAnjeonTab ? "(안전팀 탭)" : "(일반 탭)")
 
-      try {
-        const { data: currentData } = await supabase.from('timeline_sheets').select('data').eq('name', 'Sheet 1').single();
-        if (currentData?.data?.editLock) {
-           const lock = currentData.data.editLock;
-           if (Date.now() - lock.timestamp < 120000 && lock.sessionId !== mySessionId) {
-              alert("현재 다른 사용자가 편집 중입니다. 잠시 후 다시 시도해주세요.");
-              return;
-           }
-        }
+      const input = prompt("비밀번호를 입력하세요:")
+      
+      if (input === requiredPassword) {
+        try {
+          const { data: currentData } = await supabase.from('timeline_sheets').select('data').eq('name', 'Sheet 1').single();
+          if (currentData?.data?.editLock) {
+             const lock = currentData.data.editLock;
+             if (Date.now() - lock.timestamp < 120000 && lock.sessionId !== mySessionId) {
+                alert("현재 다른 사용자가 편집 중입니다. 잠시 후 다시 시도해주세요.");
+                return;
+             }
+          }
 
-        const input = prompt("비밀번호를 입력하세요:")
-        if (input === requiredPassword) {
           console.log("🚀 [DEBUG] 3. 비밀번호 일치 -> 수정 모드 활성화")
           // 락 설정
           const newLock = { sessionId: mySessionId, timestamp: Date.now() };
@@ -1066,14 +1067,14 @@ export function TimelineView() {
           if (isAnjeonTab) {
             setEditingSheetLock(currentSheetId)
           }
-        } else if (input !== null) {
-          console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
-          alert("비밀번호가 틀렸습니다.")
-        } else {
-          console.log("🚀 [DEBUG] 3. 비밀번호 입력 취소")
+        } catch (e) {
+          alert("편집 권한을 확인하는 중 오류가 발생했습니다.");
         }
-      } catch (e) {
-        alert("편집 권한을 확인하는 중 오류가 발생했습니다.");
+      } else if (input !== null) {
+        console.log("🚀 [DEBUG] 3. 비밀번호 불일치")
+        alert("비밀번호가 틀렸습니다.")
+      } else {
+        console.log("🚀 [DEBUG] 3. 비밀번호 입력 취소")
       }
     }
   }
